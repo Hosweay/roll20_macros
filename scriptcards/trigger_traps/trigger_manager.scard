@@ -1,0 +1,338 @@
+!script {{
+    --/|Version: 0.0.9
+
+    --&LogLevel|info
+
+    --&TriggerTokenimgsrc|https://files.d20.io/images/355488343/wfxBEg-Ro5pNsnkVX5RS5A/max.png?1692551112
+    --&TriggerTokenaura1_radius|0
+    --&TriggerTokenaura1_color|#f6b26b
+    --&TriggerTokenaura1_square|true
+    --&TriggerTokenlayer|gmlayer
+
+    --&EnableTriggerDetection|true
+    --&ReturnTokenOnStop|true
+    --&FlyMarker|Flying
+    --&ActivationMarker|lightning-helix
+    --&CustomAbilityMule|CustomAbilityMule
+
+    --&scStoredVariablePrefix|cgtTrigger
+    --&scStoredVariableList|TriggerTokens
+    --&scStoredHashname|TriggerTokens
+    --&TriggerTypes|description;playaudio;ambush;teleport
+    --&TriggerPrefix|trigger:
+    --&TriggerAreaOptions|area;ground;air
+    --&TriggerContinueOptions|stop;continue
+    --&TriggerActiveOptions|alwaysactive;onetime
+
+    --&MiscConfigList|EnableTriggerDetection;ReturnTokenOnStop;FlyMarker;ActivationMarker;CustomAbilityMule
+
+    --&TriggerTokenConfigList|TriggerTokenimgsrc;TriggerTokenaura1_radius;TriggerTokenaura1_color;TriggerTokenaura1_square;TriggerTokenlayer
+
+    --/|Built-in Configuration
+    --&BuiltInExtras|WhisperToTriggerer;WhisperToGM;BroadcastToChat;Playaudio;VisualEffect
+    --&WhisperToTriggererLocation|bar1_max
+    --&WhisperToGMLocation|bar2_value
+    --&BroadcastToChatLocation|bar2_max
+    --&VisualEffectLocation|bar3_value
+    --&PlayaudioLocation|bar3_max
+    --&DefaultDescription|WhisperToGM
+
+    --&TriggerLocationConfigList|WhisperToTriggererLocation;WhisperToGMLocation;BroadcastToChatLocation;VisualEffectLocation;PlayaudioLocation
+
+    --&ConfigVariableList|[&MiscConfigList];[&TriggerTokenConfigList];[&TriggerLocationConfigList]
+
+    --l:[&scStoredVariablePrefix]|[&scStoredVariableList]
+    --~|array;fromkeys;TriggerTokenKeys;[&scStoredHashname]
+
+    -->LoadConfig|scStoredVariablePrefix;ConfigVariableList
+
+    --&RQ|? --&RQ|+{
+    --#title|Trigger Manager
+    --#whisper|self
+    --#reentrant|TrigMgr
+    --~|array;objects:page;PageArr
+    --+|[c][b]Active Page List[/b][/c]
+    --%pid|foreach;PageArr
+        --&_pagelookupListButton|
+        --?"[*O:[&pid]:page:archived]" -eq "true"|%
+        --&_pageloopCreateButton|[rbutton]Create::CreateTrigger;[&pid][/rbutton]
+        --?[@TriggerTokenKeys(length)] -gt 0|>CheckPageForTriggers;[&pid];_pagelookupListButton
+        --+[*O:[&pid]:page:name]|[r][&_pagelookupListButton] [&_pageloopCreateButton][/r]
+    --%|
+
+    --+|[br][c][b]Other Options[/b][/c]
+    --+|[c][rbutton]Show Config::ShowConfig;[/rbutton][/c]
+
+    --~|array;define;_ctTypeArr;[&TriggerTypes]
+    --~|array;define;AreaArr;[&TriggerAreaOptions]
+    --~|array;define;ActiveArr;[&TriggerActiveOptions]
+    --~|array;define;ContinueArr;[&TriggerContinueOptions]
+    --~|array;define;BuiltinArr;[&BuiltInExtras]
+
+    --~AreaQueryList|array;stringify;AreaArr;|
+    --~ActiveQueryList|array;stringify;ActiveArr;|
+    --~ContinueQueryList|array;stringify;ContinueArr;|
+
+    --~|array;define;_doOptions;Area;Active;Continue
+    
+    --:Done|
+    --X|
+    --:CheckPageForTriggers|PageID;StringReturnVariable
+        --&[%2%]|
+        -->libArray_Search|TriggerTokenKeys;[%1%];_cpftPageTriggerArr
+        --?[@_cpftPageTriggerArr(length)] -eq 0|<
+        --&[%2%]|[rbutton]List::ListTriggers;[%1%][/rbutton]
+    --<|
+
+    --:ListTriggers|PageID
+        --~|array;fromstring;_ltTriggerArr;,;[:[&scStoredHashname]("[&reentryval]-triggers")]
+        --+|[c][b][*O:[&reentryval]:page:name] Trigger List[/b][/c]
+        --%_ltTTID|foreach;_ltTriggerArr
+            --?"[*[&_ltTTID]:t-name]" -inc "alwaysactive"|%
+            --+|[j][b][*[&_ltTTID]:t-name][/b] [rbutton]Activate::ReactivateTrigger;[&_ltTTID][/rbutton][/j]
+        --%|
+        --+Activate All|[rbutton]Activate All::ActivateAllTriggersPage;[&reentryval][/rbutton]
+    --^Done|
+
+    --:ActivateAllTriggersPage|PageID
+        --~|array;fromstring;_aatpTriggerArr;,;[:[&scStoredHashname]("[&reentryval]-triggers")]
+        --%_aatpTTID|foreach;_aatpTriggerArr
+            --?"[*[&_aatpTTID]:t-name]" -inc "alwaysactive"|%
+            -->ActivateTrigger|[&_aatpTTID]
+        --%|
+    --^Done|
+
+    --/|Ideally would not have this function but the conditional checking params being empty
+    --/|did not work which I thought it did previously
+    --:ReactivateTrigger|TriggerTokenID
+        --#hidecard|1
+        -->ActivateTrigger|[&reentryval]
+    --^Done|
+
+    --:ActivateTrigger|TriggerTokenID
+        --!t:[%1%]|statusmarkers:[&ActivationMarker]
+    --<|
+
+    --:CreateTrigger|PageID
+        --?"[*O:[&reentryval]:page:grid_type]" -ne "square" -or "[*O:[&reentryval]:page:showgrid]" -ne "true"|>LogMessage;FATAL;Page [&reentryval] must be set to showgrid true and grid_type square. exiting
+        --&_ctOutput|
+        --&_ctArea|
+        --&_ctActive|
+        --&_ctContinue|
+        --&_ctTriggerType|
+        --&_ctPlayaudio|
+        --&_ctVisualEffect|
+        --&_ctWhisperToGM|
+        --&_ctWhisperToTriggerer|
+        --&_ctBroadcastToChat|
+        --&_ctPageID|[&reentryval]
+        --+|[c][b]Create Trigger on [*O:[&_ctPageID]:page:name][/b][/c]
+        --+|[b]Type to create?[/b]
+        --%_ctType|foreach;_ctTypeArr
+            --&_ctOutput|+[rbutton][&_ctType(totitlecase)]::CreateChoices;[&_ctType]%builtin[/rbutton]
+        --%|
+        --&_ctOutput|+[rbutton]Custom::CreateChoices;[&RQ]Enter ability name}%custom[/rbutton]
+        --+|[&_ctOutput]
+    --^Done|
+
+    --:DisplayOptions|
+        --#hidecard|0
+        --&_doBuiltinOptions|
+        --?"[&_doBuiltinOptions]X" -ne "X"|_doAFTERBUILTINLOOP
+        --%_doBIO|foreach;BuiltinArr
+            --&_doBuiltinOptions|+[rbutton][&_doBIO]::Set[&_doBIO];[&RQ]Enter [&_doBIO]}[/rbutton]
+        --%|
+        --:_doAFTERBUILTINLOOP|
+        --+|[c][b]Current Options:[/b][/c]
+        --%_coOpt|foreach;_doOptions
+            --?"[&_ct[&_coOpt]]X" -ne "X"|&_co[&_coOpt];[&_ct[&_coOpt]]|&_co[&_coOpt];default
+            --+[&_coOpt]|[j][&_co[&_coOpt]] [rbutton]Edit::Set[&_coOpt];[&RQ][&_coOpt] Options|[&[&_coOpt]QueryList]}[/rbutton][/j]
+        --%|
+        --&_doCurrentName|[&TriggerPrefix][&_ctArea]
+        --?"[&_ctArea]X" -ne "X"|&_doCurrentName;+:
+        --&_doCurrentName|+[&_ctActive]
+        --?"[&_ctActive]X" -ne "X"|&_doCurrentName;+:
+        --&_doCurrentName|+[&_ctContinue]
+        --?"[&_ctContinue]X" -ne "X"|&_doCurrentName;+:
+        --&_doCurrentName|+[&_ctTriggerName]
+        --+Current Trigger Name|[&_doCurrentName]
+        --?"[&_ctTriggerType]" -eq "builtin"|[
+            --+|[c][b]Additional Options For Built-in[/b][/c]
+            --+|[&_doBuiltinOptions]
+        --]|
+        --&_doCreateButton|[rbutton]Create Token::SpawnTrigger;[/rbutton]
+        --c[&_ctTriggerName]|Description:>DescCheck;_doCreateButton|Playaudio:>AudioCheck;_doCreateButton|Teleport:>TeleportCheck;_doCreateButton|Ambush:>AmbushCheck;_doCreateButton
+        --+|[&_doCreateButton]
+    --<|
+
+    --:SetArea|
+        --&_ctArea|[&reentryval]
+        -->DisplayOptions|
+    --^Done|
+
+    --:SetContinue|
+        --&_ctContinue|[&reentryval]
+        -->DisplayOptions|
+    --^Done|
+
+    --:SetActive|
+        --&_ctActive|[&reentryval]
+        -->DisplayOptions|
+    --^Done|
+
+    --/|Ideally these would all merge into a single set function but I didn't want to split
+    --/|reentryval on description text fields and say you cannot ever have a % sign in your output
+    --/|If Roll20 ever allowed multiple or triggered Roll Queries, I would refactor these
+    --:SetWhisperToTriggerer|
+        --#hidecard|1
+        --&_ctWhisperToTriggerer|[&reentryval]
+        -->CheckTextDescriptions|
+        -->DisplayOptions|
+    --^Done|
+
+    --:SetWhisperToGM|
+        --#hidecard|1
+        --&_ctWhisperToGM|[&reentryval]
+        -->CheckTextDescriptions|
+        -->DisplayOptions|
+    --^Done|
+
+    --:SetBroadcastToChat|
+        --#hidecard|1
+        --&_ctBroadcastToChat|[&reentryval]
+        -->CheckTextDescriptions|
+        -->DisplayOptions|
+    --^Done|
+
+    --:SetPlayaudio|
+        --#hidecard|1
+        --&_ctPlayaudio|[&reentryval]
+        -->DisplayOptions|
+    --^Done|
+
+    --:SetVisualEffect|
+        --#hidecard|1
+        --&_ctVisualEffect|[&reentryval]
+        -->DisplayOptions|
+    --^Done|
+
+    --:CreateChoices|TriggerType
+        --&_ctTriggerName|[&reentryval(split,%,0)]
+        --&_ctTriggerType|[&reentryval(split,%,1)]
+        -->DisplayOptions|
+    --^Done|
+
+    --/|The Check functions do specific checks and generate the rbutton output
+    --/|based on those checks. This allows Roll Query prompts for needed input
+    --:DescCheck|StringReturnVariable
+        --?"[&_ctWhisperToGM]X" -eq "X" -and "[&_ctWhisperToTriggerer]X" -eq "X" -and "[&_ctBroadcastToChat]X" -eq "X"|[
+            --&[%1%]|[rbutton]Create Token::SpawnTrigger;[&RQ]Input description text}[/rbutton]
+        --]|
+    --<|
+
+    --:AudioCheck|StringReturnVariable
+        --?"[&_ctPlayaudio]X" -eq "X"|[
+            --&[%1%]|[rbutton]Create Token::SpawnTrigger;[&RQ]Input audio track}[/rbutton]
+        --]|
+    --<|
+
+    --:TeleportCheck|StringReturnVariable
+        --&[%1%]|[rbutton]Create Token::SpawnTrigger;[&RQ]Teleport location pageName#token-id or X,Y}[/rbutton]
+    --<|
+
+    --:AmbushCheck|StringReturnVariable
+        --&[%1%]|Select Tokens And Click Button[br][rbutton]Select and Create Ambush::SpawnTrigger;[/rbutton]
+    --<|
+
+    --:SpawnTrigger|
+        --#hidecard|0
+        --&bar1_value|
+        --?"[&_ctTriggerName]" -eq "ambush"|[
+            --~bar1_value|array;stringify;SC_SelectedTokens
+        --]|
+        --?"[&_ctTriggerName]" -eq "teleport"|[
+            --&bar1_value|[&reentryval]
+        --]|
+        --?"[&_ctTriggerName]" -eq "playaudio" -and "[&_ctPlayaudio]X" -eq "X"|[
+            --&_ctPlayaudio|[&reentryval]
+        --]|
+        --?"[&_ctTriggerName]" -eq "description" -and "[&reentryval]X" -ne "X"|[
+            --&_ct[&DefaultDescription]|[&reentryval]
+        --]|
+        --!ot:NewTriggerTID|bar1_value:"[&bar1_value]"|
+            _pageid:[&_ctPageID]|
+            name:"[&_doCurrentName]"|
+            imgsrc:"[&TriggerTokenimgsrc]"|
+            layer:[&TriggerTokenlayer]|
+            aura1_square:[&TriggerTokenaura1_square]|
+            aura1_radius:[&TriggerTokenaura1_radius]|
+            aura1_color:[&TriggerTokenaura1_color]|
+            [&PlayaudioLocation]:"[&_ctPlayaudio]"|
+            [&VisualEffectLocation]:"[&_ctVisualEffect]"|
+            [&WhisperToGMLocation]:"[&_ctWhisperToGM]"|
+            [&WhisperToTriggererLocation]:"[&_ctWhisperToTriggerer]"|
+            [&BroadcastToChatLocation]:"[&_ctBroadcastToChat]"
+        --+|Spawned new [&_ctTriggerName] trigger token with ID [&NewTriggerTID] on page [*O:[&_ctPageID]:page:name]
+    --^Done|
+
+    --:CheckTextDescriptions|
+        --?"[&_ctWhisperToGM]X" -ne "X" -and "[&_ctWhisperToTriggerer]X" -ne "X" -and "[&_ctBroadcastToChat]X" -ne "X"|>LogMessage;ERROR;Having all 3 text output locations set is not supported. Please unset at least one location.
+    --<|
+
+    --:libArray_Search|ArrayNameToSearch;StringToSearch;ReturnArrayForIndexesFound
+        --~|array;define;[%3%]
+        --~_libsaTmpStringed|array;stringify;[%1%];%%%
+        --~_libsaTmpSplitted|string;split;[%2%];[&_libsaTmpStringed]
+        --?[$_libsaTmpSplittedCount] -eq 1|_ENDLIBARRAYSEARCHFUNCTION
+        --&_libsaTmpIdxHolder|0
+        --%_libsaI|1;[= [$_libsaTmpSplittedCount] - 1];1
+            --~_libsaTmpIndexLoop|string;split;%%%;[&_libsaTmpSplitted[&_libsaI]]
+            --&_libsaTmpIdxHolder|[= [&_libsaTmpIdxHolder] + [$_libsaTmpIndexLoopCount.Raw] - 1]
+            --~|array;add;[%3%];[&_libsaTmpIdxHolder]
+        --%|
+        --:_ENDLIBARRAYSEARCHFUNCTION|
+    --<|
+
+    --:LoadConfig|Prefix;ListOfStringVariables
+        --l&[&[%1%]]|[&[%2%]]
+    --<|
+
+    --:SaveConfig|Prefix;ListOfStringVariables
+        --s&[&[%1%]]|[&[%2%]]
+    --<|
+
+    --:ShowConfig|
+        --#hidecard|0
+        --~|array;define;_scConfigVar;[&ConfigVariableList]
+        --%_scCVar|foreach;_scConfigVar
+            --+[&_scCVar]|"[&[&_scCVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new config value}%%%[&_scCVar][/rbutton]
+        --%|
+    --^Done|
+
+    --:EditConfig|
+        --#hidecard|1
+        --&_ecVar|[&reentryval(split,%%%,1)]
+        --&_ecValue|[&reentryval(split,%%%,0)]
+        --&[&_ecVar]|[&_ecValue]
+        -->SaveConfig|scStoredVariablePrefix;ConfigVariableList
+    --^Done|
+
+    --:LogMessage|MessageLevel;Message
+        --#hidecard|0
+        --&_lmMessageLevel|[%1%]
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "fatal"|_lmSENDTOCONSOLE
+        --&_lmNum|1
+        --?"[&LogLevel(tolowercase)]" -eq "warn"|&_lmNum;10
+        --?"[&LogLevel(tolowercase)]" -eq "info"|&_lmNum;100
+        --?"[&LogLevel(tolowercase)]" -eq "debug"|&_lmNum;1000
+        --&_lmMLNum|1
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "warn"|&_lmMLNum;10
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "info"|&_lmMLNum;100
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "debug"|&_lmMLNum;1000
+        --?[&_lmMLNum] -gt [&_lmNum]|_ENDLOG
+        --:_lmSENDTOCONSOLE|
+        --+[&_lmMessageLevel(touppercase)]|[%2%]
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "fatal"|Done
+        --:_ENDLOG|
+    --<|
+}}

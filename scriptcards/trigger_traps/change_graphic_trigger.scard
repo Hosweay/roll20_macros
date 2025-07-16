@@ -1,0 +1,774 @@
+!script {{
+    --/|Work in progress change:graphic trigger for token collisions with traps
+    --&_triggerVersion|0.0.16
+
+    --/|CONFIGURATION VARIABLES
+    --&LogLevel|error
+    --&EnableTriggerDetection|true
+    --&ReturnTokenOnStop|true
+    --&FlyMarker|Flying
+    --&ActivationMarker|lightning-helix
+    --&CustomAbilityMule|CustomAbilityMule
+    
+    --/|Built-in Configuration
+    --&WhisperToTriggererLocation|bar1_max
+    --&WhisperToGMLocation|bar2_value
+    --&BroadcastToChatLocation|bar2_max
+    --&VisualEffectLocation|bar3_value
+    --&PlayaudioLocation|bar3_max
+
+    --&TeleportLocation|bar1_value
+    --&TokenPropertiesSkipSync|_subtype;_id;_cardid;imgsrc;sides;lastmove;name
+    --&TokenPropertiesSkipSpawn|_id;_cardid;lastmove;top;left
+    --&TokenPropertiesToQuote|statusmarkers;sides;imgsrc;gmnotes;name
+    --&TokenPropertiesNullable|bar_location;compact_bar;night_vision_tint
+    --&TokenPropertiesTrueFalse|isdrawing;disableSnapping;disableTokenMenu;flipv;fliph;aura1_square;aura2_square;showname;showplayers_name;showplayers_bar1;showplayers_bar2;showplayers_bar3;showplayers_aura1;showplayers_aura2;playersedit_name;playersedit_bar1;playersedit_bar2;playersedit_bar3;playersedit_aura1;playersedit_aura2;light_otherplayers;light_hassight;has_bright_light_vision;has_night_vision;emits_bright_light;emits_low_light;has_limit_field_of_vision;has_limit_field_of_night_vision;has_directional_bright_light;has_directional_dim_light;show_tooltip;lockMovement;fadeOnOverlap;renderAsScenery;renderAsDarkness
+
+    --&AmbushLocation|bar1_value
+    --&UseEncounterHelperForAmbush|false
+    
+    --&triggerTokenNamePrefix|trigger:
+    --&scStoredVariablePrefix|cgtTrigger
+
+    --&_triggerBuiltInList|description;playaudio;teleport;ambush
+    --&_layerOptions|gmlayer;objects;map;walls;foreground
+    
+    --&minimumSCVersion|300120
+    --#hidecard|1
+
+    --/|TRIGGER_REPLACEMENTS
+    --/|TRAP/TRIGGER DETECTION SECTION
+    -->LogMessage|DEBUG;Trigger version [&_triggerVersion]
+    --?"[&SC_VERSION_NUMERIC]" -lt "[&minimumSCVersion]"|>LogMessage;FATAL;Minimum ScriptCards version not met. Must be 3.0.12 or greater. exiting
+    --?"[&EnableTriggerDetection]" -eq "true"|>LogMessage;DEBUG;Trigger detection is enabled|AfterTriggerDetection
+    -->LogMessage|DEBUG;changed token prefix: [&GraphicNewname(0,[&triggerTokenNamePrefix(length)])]
+    --?"[&GraphicNewname(0,[&triggerTokenNamePrefix(length)])]" -eq "[&triggerTokenNamePrefix]"|>RescanPageForTriggers;Exit
+
+    -->LogMessage|DEBUG;Old lastmove:[&GraphicOldlastmove] New lastmove:[&GraphicNewlastmove]|
+
+    --~|array;define;_triggerBuiltIns;[&_triggerBuiltInList]
+    --?"[&GraphicOldlastmove]" -ne "[&GraphicNewlastmove]"|>TriggerDetection
+    --:AfterTriggerDetection|
+    -->LogMessage|DEBUG;Reached the end of the change:graphic trigger
+
+    --:Done|
+    --X|
+    --:TriggerDetection|
+        -->LogMessage|DEBUG;Current triggered page id:[&GraphicNew_pageid]
+        --?"[*O:[&GraphicNew_pageid]:page:grid_type]" -ne "square" -or "[*O:[&GraphicNew_pageid]:page:showgrid]" -ne "true"|>LogMessage;FATAL;Currently only supported for square grid pages and [&GraphicNew_pageid] is type [*O:[&GraphicNew_pageid]:page:grid_type] and show grid is [*O:[&GraphicNew_pageid]:page:showgrid:::0]
+        --h:TriggerTokens("")|
+        -->LogMessage|DEBUG;Page Trigger Tokens:[:TriggerTokens("[&GraphicNew_pageid]-triggers")]
+        -->LoadStoredTriggerHash|
+        -->LogMessage|DEBUG;After loading attempt. [:TriggerTokens("[&GraphicNew_pageid]-triggers")]
+        --?"[:TriggerTokens("[&GraphicNew_pageid]-triggers")]" -eq "undefined"|>RescanPageForTriggers
+        -->CheckForTokenCollisions|CollisionsArray
+        -->LogMessage|DEBUG;Collided with [@CollisionsArray(length)] tokens [@CollisionsArray(0)]
+        --?[@CollisionsArray(length)] -eq 0|Done
+        --%ttid|foreach;CollisionsArray
+            -->LogMessage|DEBUG;Collided with [&ttid] - [*[&ttid]:t-name] checking if area matches for ground/air and [&FlyMarker]
+            --~_triggerName|string;after;[&triggerTokenNamePrefix];[*[&ttid]:t-name]
+            --?"[&_triggerName(split,:,0)]" -eq "ground" -and "[*[&GraphicNew_id]:t-statusmarkers]" -inc "[&FlyMarker]"|ENDCOLTOKENLOOP
+            --?"[&_triggerName(split,:,0)]" -eq "air" -and "[*[&GraphicNew_id]:t-statusmarkers]" -ninc "[&FlyMarker]"|ENDCOLTOKENLOOP
+            -->ProcessTriggerCollisions|[&ttid];[&GraphicNew_id];[:CollisionsObject("[&ttid]")];StopOnCollision
+            --?[&StopOnCollision] -eq 1|_tdAFTERCOLLISIONLOOP
+            --:ENDCOLTOKENLOOP|
+        --%|
+        --:_tdAFTERCOLLISIONLOOP|
+        -->LogMessage|DEBUG;Reached end of TriggerDetection function
+    --<|
+
+    --:ProcessTriggerCollisions|TriggerTokenID;TriggeringTokenID;TriggeringSquare;ReturnBooleanToStopProcessing
+        --~|array;define;_ptcTrapAreaArray;area;ground;air
+        --~|array;define;_ptcTrapActiveStatusArray;onetime;alwaysactive
+        --~|array;define;_ptcTrapStopArray;stop;continue
+        --&[%4%]|0
+        -->LogMessage|DEBUG;Trap Token:[%1%] Triggering Token:[%2%] Square [%3%]
+        --~_ptcTrapName|string;split;:;[*[%1%]:t-name]
+        --?[$_ptcTrapNameCount] -gt 5|>LogMessage;FATAL;[*[%1%]:t-name] had more colon separated stanzas than are allowed. Please rename to only have fewer than 4 colons in the form of [&triggerTokenNamePrefix]Area:ActiveAfterTrigger:StopMovementOnTrigger
+        --&_ptcAbility|[&_ptcTrapName[$_ptcTrapNameCount.Raw]]
+        --?[$_ptcTrapNameCount] -eq 2|[
+            --&_ptcTrapArea|[@_ptcTrapAreaArray(0)]
+            --&_ptcTrapActiveStatus|[@_ptcTrapActiveStatusArray(0)]
+            --&_ptcTrapStop|[@_ptcTrapStopArray(0)]
+        --]|
+        --?[$_ptcTrapNameCount] -eq 3|[
+            -->CheckTriggerConfiguration|_ptcTrapAreaArray;[&_ptcTrapName2];_ptcTrapArea
+            -->CheckTriggerConfiguration|_ptcTrapActiveStatusArray;[&_ptcTrapName2];_ptcTrapActiveStatus
+            -->CheckTriggerConfiguration|_ptcTrapStopArray;[&_ptcTrapName2];_ptcTrapStop
+        --]|
+        --?[$_ptcTrapNameCount] -eq 4|[
+            -->CheckTriggerConfiguration|_ptcTrapAreaArray;[&_ptcTrapName2];_ptcTrapArea
+            -->CheckTriggerConfiguration|_ptcTrapStopArray;[&_ptcTrapName3];_ptcTrapStop
+            -->CheckTriggerConfiguration|_ptcTrapActiveStatusArray;[&_ptcTrapName2];_ptcTmpActive2
+            -->CheckTriggerConfiguration|_ptcTrapActiveStatusArray;[&_ptcTrapName3];_ptcTmpActive3
+            --?"[&_ptcTmpActive2]" -ne "[@_ptcTrapActiveStatusArray(0)]"|&_ptcTrapActiveStatus;[&_ptcTmpActive2]
+            --?"[&_ptcTmpActive3]" -ne "[@_ptcTrapActiveStatusArray(0)]"|&_ptcTrapActiveStatus;[&_ptcTmpActive3]
+            --?"[&_ptcTrapActiveStatus]X" -eq "X"|&_ptcTrapActiveStatus;[@_ptcTrapActiveStatusArray(0)]
+        --]|
+        --?[$_ptcTrapNameCount] -eq 5|[
+            -->CheckTriggerConfiguration|_ptcTrapAreaArray;[&_ptcTrapName2];_ptcTrapArea
+            -->CheckTriggerConfiguration|_ptcTrapActiveStatusArray;[&_ptcTrapName3];_ptcTrapActiveStatus
+            -->CheckTriggerConfiguration|_ptcTrapStopArray;[&_ptcTrapName4];_ptcTrapStop
+        --]|
+        -->LogMessage|DEBUG;Trigger:[*[%1%]:t-name] Area:[&_ptcTrapArea] ActiveStatus:[&_ptcTrapActiveStatus] Stop Movement:[&_ptcTrapStop] Ability:[&_ptcAbility]
+
+        -->LogMessage|DEBUG;Checking if trigger is active [&_ptcTrapActiveStatus] markers: [*[%1%]:t-statusmarkers]
+        --?"[&_ptcTrapActiveStatus]" -eq "onetime" -and "[*[%1%]:t-statusmarkers]" -ne "[&ActivationMarker]"|ENDOFPROCESSTRIGGERCOLLISIONS
+
+        --?"[&_ptcTrapStop]" -eq "stop"|&[%4%];1
+        -->LogMessage|DEBUG;Check if ability:[&_ptcAbility] is in built-in ability list
+        --~_ptcBIIndex|array;indexof;_triggerBuiltIns;[&_ptcAbility(tolowercase)]
+        --?"[&_ptcBIIndex]" -eq "ArrayError"|&_ptcIsBuiltIn;0|&_ptcIsBuiltIn;1
+        -->LogMessage|DEBUG;Ability:[&_ptcAbility] Area:[&_ptcTrapArea] Active:[&_ptcTrapActiveStatus] Stop:[&_ptcTrapStop] Built-in:[&_ptcIsBuiltIn]
+        --?[&_ptcIsBuiltIn] -eq 1|>_Builtin[&_ptcAbility(totitlecase)];[%1%];[%2%];[%3%];[&_ptcTrapArea]|>_RunCustomAbility;[&_ptcAbility];[%1%];[%2%];[%3%];[&_ptcTrapArea]
+
+        --?"[&_ptcTrapActiveStatus]" -eq "onetime"|>_DeactivateTrigger;[%1%]
+        --:ENDOFPROCESSTRIGGERCOLLISIONS|
+        -->LogMessage|DEBUG;Reached end of ProcessTriggerCollisions
+    --<|
+
+    --:CheckTriggerConfiguration|ArrayName;SearchItem;ReturnVariable
+        --~_ctcTmpIndex|array;indexof;[%1%];[%2%]
+        --?"[&_ctcTmpIndex]" -eq "ArrayError"|>LogMessage;WARN;[%2%] not a valid option found in [%1%]. Ignoring and setting to default value of [@[%1%](0)]|_SETTRIGGERCONFIG
+        --&[%3%]|[@[%1%](0)]
+        --^_ENDCTCHECK|
+        --:_SETTRIGGERCONFIG|
+        --&[%3%]|[@[%1%]([&_ctcTmpIndex])]
+        --:_ENDCTCHECK|
+    --<|
+
+    --:LoadStoredTriggerHash|
+        -->LogMessage|DEBUG;Attempting to load stored TriggerTokens
+        --l:[&scStoredVariablePrefix]|TriggerTokens
+        --l&[&scStoredVariablePrefix]|lastupdated
+    --<|
+
+    --:RescanPageForTriggers|ExitBoolean(optional:default false)
+        -->LogMessage|DEBUG;This would rescan the page for triggers
+        -->LoadStoredTriggerHash|
+        --~|hash;set;TriggerTokens
+        --~_rpftTokenCount|array;pagetokens;_rpftGraphicsArr;[&GraphicNew_pageid];graphic
+        -->ClearObjectStorePageEntries|
+        --h:TriggerTokens("[&GraphicNew_pageid]-triggers")|0
+        --?[&_rpftTokenCount] -eq 0|<
+
+        --~|array;define;_rpftTriggerArr
+        --%_rpftTID|foreach;_rpftGraphicsArr
+            --?"[*[&_rpftTID]:t-name]" -ninc "[&triggerTokenNamePrefix]"|ENDRPFTLOOP
+            --~|array;add;_rpftTriggerArr;[&_rpftTID]
+            -->GetTokenCoordinates|[&_rpftTID];_rpftTmpTokenCoors
+            -->GetGridSquaresByCoordinates|[&_rpftTID];_rpftTmpTokenCoors;_rpftTmpSquares
+            --%_rpftTmpSq|foreach;_rpftTmpSquares
+                -->AddTriggerSquareToObjectStore|[&_rpftTID];[&_rpftTmpSq]
+            --%|
+            --~_rpftDEBUG|array;stringify;_rpftTmpSquares;|
+            -->LogMessage|DEBUG;[&_rpftTID] square list [&_rpftDEBUG]
+            --:ENDRPFTLOOP|
+            -->LogMessage|DEBUG;Reached the end of the rescanpagefortriggers loop
+        --%|
+        -->LogMessage|DEBUG;Trigger array items [@_rpftTriggerArr(length)]
+        --~_rpftTriggerList|array;stringify;_rpftTriggerArr;,
+        --?"[@_rpftTriggerArr(length)]" -gt 0|>SetHashValueAndLog;TriggerTokens;[&GraphicNew_pageid]-triggers;[&_rpftTriggerList];DEBUG;Setting triggers to [&_rpftTriggerList] for [&GraphicNew_pageid]
+        -->LogMessage|DEBUG;Saving TriggerTokens in storage
+        --~lastupdated|system;date;getraw
+        --s:[&scStoredVariablePrefix]|TriggerTokens
+        --s&[&scStoredVariablePrefix]|lastupdated
+        --?"[%1%]" -eq "Exit"|Done
+    --<|
+
+    --:ClearObjectStorePageEntries|
+        -->LogMessage|DEBUG;Clearing out storage entries for [&GraphicNew_pageid]
+        --~|array;fromkeys;_cospeKeys;TriggerTokens
+        --?[@_cospeKeys(length)] -eq 0|cospeEnd
+        --%_cospeKey|foreach;_cospeKeys
+            -->LogMessage|DEBUG;key [&_cospeKey]
+            --?"[&_cospeKey(0,[&GraphicNew_pageid(length)])]" -eq "[&GraphicNew_pageid]"|>SetHashValueAndLog;TriggerTokens;[&_cospeKey];;DEBUG;Deleting key [&_cospeKey] from TriggerTokens
+        --%|
+        --:cospeEnd|
+    --<|
+
+    --:AddTriggerSquareToObjectStore|TokenIDForTrigger;SquareToAdd
+        -->LogMessage|DEBUG;Inside AddTriggerSquareToObjectStore [%1%] [%2%]
+        -->LogMessage|DEBUG;Checking if [:TriggerTokens("[&GraphicNew_pageid]-[%2%]")] is defined
+        --?"[:TriggerTokens("[&GraphicNew_pageid]-[%2%]")]" -inc "[%1%]"|EndATSTOS
+        --?"[:TriggerTokens("[&GraphicNew_pageid]-[%2%]")]X" -eq "X" -or "[:TriggerTokens("[&GraphicNew_pageid]-[%2%]")]" -eq "undefined"|>SetHashValueAndLog;TriggerTokens;[&GraphicNew_pageid]-[%2%];[%1%];DEBUG;Empty square [&GraphicNew_pageid]-[%2%]|>SetHashValueAndLog;TriggerTokens;[&GraphicNew_pageid]-[%2%];[:TriggerTokens("[&GraphicNew_pageid]-[%2%]")],[%1%];DEBUG;Already an entry for [&GraphicNew_pageid]-[%2%] [:TriggerTokens("[&GraphicNew_pageid]-[%2%]")]
+        --:EndATSTOS|
+        -->LogMessage|DEBUG;Reached the end of the AddTriggerSquareToObjectStore function
+    --<|
+
+    --/|Returns an array with the token ids of all trigger tokens in the order they were encountered
+    --/|Populates a collision object with the trigger token id and square first encountered
+    --:CheckForTokenCollisions|ArrayNameForTriggerTokenIDs
+        --~|hash;clear;CollisionsObject
+        --h:CollisionsObject("")|
+        --~|array;define;[%1%]
+        -->LogMessage|DEBUG;This would check for token collisions since lastmove was changed
+        --?"[:TriggerTokens("[&GraphicNew_pageid]-triggers")]" -eq "0"|>LogMessage;FATAL;No triggers on page [&GraphicNew_pageid]
+        -->LogMessage|DEBUG;Checking lastmove for [&GraphicNew_id] [&GraphicNewlastmove]
+        -->GetTokensLastMoveSquareList|[&GraphicNew_id];_cftcSquaresArray
+        --~_cftcDEBUGSquares|array;stringify;_cftcSquaresArray;|
+        -->LogMessage|DEBUG;[&GraphicNew_id] moved through [&_cftcDEBUGSquares]
+        --%_cftcSq|foreach;_cftcSquaresArray
+            -->LogMessage|DEBUG;Checking for collision on [&GraphicNew_pageid]-[&_cftcSq]
+            --?"[:TriggerTokens("[&GraphicNew_pageid]-[&_cftcSq]")]" -eq "undefined"|ENDCFTCMAINLOOP
+            -->LogMessage|DEBUG;Found a collision [:TriggerTokens("[&GraphicNew_pageid]-[&_cftcSq]")] [&_cftcSq]
+            --~_cftcTmpTList|string;split;,;[:TriggerTokens("[&GraphicNew_pageid]-[&_cftcSq]")]
+            --%_cftcTmpIndex|1;[$_cftcTmpTListCount];1
+                --?"[:CollisionsObject("[&_cftcTmpTList[&_cftcTmpIndex]]")]" -eq "undefined"|>SetHashValueAndLog;CollisionsObject;[&_cftcTmpTList[&_cftcTmpIndex]];[&_cftcSq];DEBUG;Adding to CollisionsObject [&_cftcTmpTList[&_cftcTmpIndex]] at square [&_cftcSq]
+                -->LogMessage|DEBUG;Index [&_cftcTmpIndex] Pushing [&_cftcTmpTList[&_cftcTmpIndex]] to [%1%]
+                -->_GridPushToArray|[%1%];[&_cftcTmpTList[&_cftcTmpIndex]]
+            --%|
+            --:ENDCFTCMAINLOOP|
+        --%|
+    --<|
+
+    --:GetTokenCoordinates|TokenID;HashTableName;LeftPosition(optional);TopPosition(optional)
+        --?"[%3%]X" -eq "X"|&_gtcLP;[*[%1%]:t-left]|&_gtcLP;[%3%]
+        --?"[%4%]X" -eq "X"|&_gtcTP;[*[%1%]:t-top]|&_gtcTP;[%4%]
+        --=_gtcHalfHeight|[*[%1%]:t-height] / 2
+        --=_gtcHalfWidth|[*[%1%]:t-width] / 2
+        --=_gtcLx|[&_gtcLP] - [$_gtcHalfWidth] {ROUND}
+        --=_gtcLy|[&_gtcTP] - [$_gtcHalfHeight] {ROUND}
+        --=_gtcRx|[&_gtcLP] + [$_gtcHalfWidth] {ROUND}
+        --=_gtcRy|[&_gtcTP] + [$_gtcHalfHeight] {ROUND}
+        --~|hash;set;[%2%];[%1%]_Lx==[$_gtcLx];[%1%]_Ly==[$_gtcLy];[%1%]_Rx==[$_gtcRx];[%1%]_Ry==[$_gtcRy]
+    --<|
+
+    --:GetSquareSizeForPage|PageID;StringVariableForReturn
+        --&[%2%]|[= 70 * [*O:[%1%]:page:snapping_increment] ]
+    --<|
+
+    --:GetTokenSizeInGridSquares|TokenID;StringVariableForWidth;StringVariableForHeight
+        -->GetSquareSizeForPage|[*[%1%]:t-_pageid];_gtsigsSqSize
+        --&[%2%]|[= [*[%1%]:t-width] / [&_gtsigsSqSize] ]
+        --&[%3%]|[= [*[%1%]:t-height] / [&_gtsigsSqSize] ]
+    --<|
+
+    --:GetGridSquaresByCoordinates|TokenID;DimensionsHashTableName;ArrayNameForSquares
+        -->GetTokenSizeInGridSquares|[%1%];_ggsbcTWidth;_ggsbcTHeight
+        -->GetSquareSizeForPage|[*[%1%]:t-_pageid];_ggsbcSqSize
+        --&_ggsbcTLColumn|[= [:[%2%]("[%1%]_Lx")] /  [&_ggsbcSqSize] ]
+        --&_ggsbcTLRow|[= [:[%2%]("[%1%]_Ly")] /  [&_ggsbcSqSize] ]
+        --~|array;define;[%3%]
+        --%_ggsbcI|1;[&_ggsbcTWidth];1
+            --&_ggsbcTempX|[= [&_ggsbcTLColumn] + [&_ggsbcI] ]
+            --%_ggsbcJ|1;[&_ggsbcTHeight];1
+                --&_ggsbcTempY|[= [&_ggsbcTLRow] + [&_ggsbcJ] ]
+                --~|array;add;[%3%];[&_ggsbcTempX],[&_ggsbcTempY]
+            --%|
+        --%|
+    --<|
+
+    --:GetTokenIDFromCoordinatesHash|CoordinatesHashTable;StringVariableForTokenID
+        --~|array;fromkeys;_gtidfchArr;[%1%]
+        --&[%2%]|ErrorNotFound
+        --?[@_gtidfchArr(length)] -lt 3|<
+        --&_gtidfchTempVar|[@_gtidfchArr(0)]
+        --&[%2%]|[&_gtidfchTempVar(0,20)]
+    --<|
+
+    --:GetTokensLastMoveSquareList|TokenID;ArrayNameForReturn
+        -->GetTokenSizeInGridSquares|[%1%];_gtlmslTWidth;_gtlmslTHeight
+        --?[&_gtlmslTHeight] -gt 1 -or [&_gtlmslTWidth] -gt 1|&_gtlmslReturnArray;_gtlmslTempArray|&_gtlmslReturnArray;[%2%]
+        --~_gtlmslLM|string;split;,;[*[%1%]:t-lastmove]
+        --~|hash;clear;_gtlmslOriginalSquares
+        --%_gtlmslStartingLeftIndex|1;[$_gtlmslLMCount];2
+            --&_gtlmslStartingTopIndex|[= [&_gtlmslStartingLeftIndex] + 1]
+            --?[$_gtlmslLMCount] -gt [&_gtlmslStartingTopIndex]|[
+                -->LogMessage|DEBUG;Multimove Waypoint
+                --&_gtlmlsDestLeftIndex|[= [&_gtlmslStartingTopIndex] + 1]
+                --&_gtlmlsDestTopIndex|[= [&_gtlmslStartingTopIndex] + 2]
+                --&_gtlmlsDestLeftCoordinate|[&_gtlmslLM[&_gtlmlsDestLeftIndex]]
+                --&_gtlmlsDestTopCoordinate|[&_gtlmslLM[&_gtlmlsDestTopIndex]]
+            --]|[
+                -->LogMessage|DEBUG;Final move
+                --&_gtlmlsDestLeftCoordinate|[*[%1%]:t-left]
+                --&_gtlmlsDestTopCoordinate|[*[%1%]:t-top]
+            --]|
+            --~|hash;clear;_gtlmslSourceHash
+            --~|hash;clear;_gtlmslDestHash
+            -->LogMessage|DEBUG;TID:[%1%] [&_gtlmslLM[&_gtlmslStartingLeftIndex]] [&_gtlmslLM[&_gtlmslStartingTopIndex]]
+            -->LogMessage|DEBUG;[&_gtlmlsDestLeftCoordinate] [&_gtlmlsDestTopCoordinate]
+            -->GetTokenCoordinates|[%1%];_gtlmslSourceHash;[&_gtlmslLM[&_gtlmslStartingLeftIndex]];[&_gtlmslLM[&_gtlmslStartingTopIndex]]
+            -->GetTokenCoordinates|[%1%];_gtlmslDestHash;[&_gtlmlsDestLeftCoordinate];[&_gtlmlsDestTopCoordinate]
+            -->GetGridSquaresByCoordinates|[%1%];_gtlmslSourceHash;_gtlmslSourceSquares
+            -->GetGridSquaresByCoordinates|[%1%];_gtlmslDestHash;_gtlmslDestSquares
+
+            --?[&_gtlmslStartingLeftIndex] -eq 1|>GetGridSquaresByCoordinates;[%1%];_gtlmslSourceHash;_gtlmslOriginalSquares
+
+            -->LogMessage|DEBUG;SourceSquares [@_gtlmslSourceSquares(length)] DestSquares [@_gtlmslDestSquares(length)]
+            -->LogMessage|DEBUG;OriginalSquares [@_gtlmslOriginalSquares(0)]
+
+            --~_gtlmlsStartingTopLeftSquare|string;split;,;[@_gtlmslSourceSquares(0)]
+            --~_gtlmlsEndingTopLeftSquare|string;split;,;[@_gtlmslDestSquares(0)]
+
+            -->LogMessage|DEBUG;GTLMSL SLI [&_gtlmslStartingLeftIndex]
+            -->LogMessage|DEBUG;GTLMSL [&_gtlmlsStartingTopLeftSquare1] [&_gtlmlsStartingTopLeftSquare2] [&_gtlmlsEndingTopLeftSquare1] [&_gtlmlsEndingTopLeftSquare2]
+            --?[&_gtlmslStartingLeftIndex] -eq 1|>GetSquaresTraversed;[%1%];[&_gtlmlsStartingTopLeftSquare1];[&_gtlmlsStartingTopLeftSquare2];[&_gtlmlsEndingTopLeftSquare1];[&_gtlmlsEndingTopLeftSquare2];[&_gtlmslReturnArray];_gtlmslOriginalSquares|>GetSquaresTraversed;[%1%];[&_gtlmlsStartingTopLeftSquare1];[&_gtlmlsStartingTopLeftSquare2];[&_gtlmlsEndingTopLeftSquare1];[&_gtlmlsEndingTopLeftSquare2];[&_gtlmslReturnArray]
+
+            --?[&_gtlmslStartingTopIndex] -ge [$_gtlmslLMCount]|%!
+        --%|
+        --?[&_gtlmslTHeight] -gt 1 -or [&_gtlmslTWidth] -gt 1|[
+            --~|array;define;[%2%]
+            --%_gtlmslReturnCoordinate|foreach;_gtlmslTempArray
+                -->_GridPushToArray|[%2%];[&_gtlmslReturnCoordinate]
+                --~_gtlmslSquareInfo|string;split;,;[&_gtlmslReturnCoordinate]
+                --%_gtlmslAdditionalCol|0;[= [&_gtlmslTWidth] - 1];1
+                    --&_gtlmslNewCol|[= [&_gtlmslSquareInfo1] + [&_gtlmslAdditionalCol]]
+                    --%_gtlmslAdditionalRow|0;[= [&_gtlmslTHeight] - 1];1
+                        --&_gtlmslNewRow|[= [&_gtlmslSquareInfo2] + [&_gtlmslAdditionalRow]]
+                        --~_gtlmslOSCheck|array;indexof;_gtlmslOriginalSquares;[&_gtlmslNewCol],[&_gtlmslNewRow]
+                        --?"[&_gtlmslOSCheck]" -ne "ArrayError"|_gtlmslPostPush
+                        -->_GridPushToArray|[%2%];[&_gtlmslNewCol],[&_gtlmslNewRow]
+                        --:_gtlmslPostPush|
+                    --%|
+                --%|
+            --%|
+        --]|
+    --<|
+
+    --:GetSquaresTraversed|TokenID;X0;Y0;X1;Y1;ArrayNameForReturn;OriginalSquaresArray(optional)
+        -->LogMessage|DEBUG;GST [%1%] [%2%] [%3%] [%4%] [%5%] [%6%] [%7%]
+        --?[%2%] -eq [%4%] -or [%3%] -eq [%5%]|>StraightPath;[%1%];[%2%];[%3%];[%4%];[%5%];[%6%];[%7%]|>Bresenham;[%1%];[%2%];[%3%];[%4%];[%5%];[%6%];[%7%]
+    --<|
+
+    --:StraightPath|TokenID;X0;Y0;X1;Y1;ArrayNameForReturn;OriginalSquaresArray(optional)
+        -->GetTokenSizeInGridSquares|[%1%];_spTWidth;_spTHeight
+        -->LogMessage|DEBUG;Straight Path
+        --?[%2%] -eq [%4%]|[
+            --&_spSY|[%3%]
+            --&_spEY|[%5%]
+            --?[&_spEY] -gt [&_spSY]|&_spIncrement;1|&_spIncrement;-1
+            --%_spCY|[&_spSY];[&_spEY];[&_spIncrement]
+                --?"[%7%]X" -eq "X"|StraightPathPushY
+                -->LogMessage|DEBUG;Checking StraightPathPushY for original squares [%2%],[&_spCY]
+                --~_origsqChk|array;indexof;[%7%];[%2%],[&_spCY]
+                -->LogMessage|DEBUG;OrigSqChk result [&_origsqChk]
+                --?"[&_origsqChk]" -ne "ArrayError"|StraightPathPostPushY
+                --:StraightPathPushY|
+                -->_GridPushToArray|[%6%];[%2%],[&_spCY]
+                --:StraightPathPostPushY|
+            --%|
+        --]|[
+            --&_spSX|[%2%]
+            --&_spEX|[%4%]
+            --?[&_spEX] -gt [&_spSX]|&_spIncrement;1|&_spIncrement;-1
+            --%_spCX|[&_spSX];[&_spEX];[&_spIncrement]
+                --?"[%7%]X" -eq "X"|StraightPathPushX
+                -->LogMessage|DEBUG;Checking StraightPathPushX for original squares [&_spCX],[%3%]
+                --~_origsqChk|array;indexof;[%7%];[&_spCX],[%3%]
+                -->LogMessage|DEBUG;OrigSqChk result [&_origsqChk]
+                --?"[&_origsqChk]" -ne "ArrayError"|StraightPathPostPushX
+                --:StraightPathPushX|
+                -->_GridPushToArray|[%6%];[&_spCX],[%3%]
+                --:StraightPathPostPushX|
+            --%|
+        --]|
+    --<|
+
+    --/|Stolen from https://www.middle-engine.com/blog/posts/2020/07/28/bresenhams-line-algorithm
+    --:Bresenham|TokenID;X0;Y0;X1;Y1;ArrayNameForReturn;OriginalSquaresArray(optional)
+        -->LogMessage|DEBUG;Bresenham 1st:[%2%] 2nd:[%3%] 3rd:[%4%] 4th:[%5%]
+        --&_bX0|[%2%]
+        --&_bY0|[%3%]
+        --&_bX1|[%4%]
+        --&_bY1|[%5%]
+        --=_bDeltaX|[&_bX1] - [&_bX0]
+        --=_bDeltaY|[&_bY1] - [&_bY0]
+        --=_bAbsDeltaX|[$_bDeltaX] {ABS}
+        --=_bAbsDeltaY|[$_bDeltaY] {ABS}
+        --?[$_bDeltaX] -gt 0|&_bSlopeX;1|&_bSlopeX;-1
+        --?[$_bDeltaY] -gt 0|&_bSlopeY;1|&_bSlopeY;-1
+        --=_bEspilon|0
+        -->LogMessage|DEBUG;DeltaX:[$_bDeltaX] DeltaY:[$_bDeltaY]
+        -->LogMessage|DEBUG;ABX:[$_bAbsDeltaX] ABY:[$_bAbsDeltaY]
+        -->LogMessage|DEBUG;Sx:[&_bSlopeX] Sy:[&_bSlopeY]
+        --?[$_bAbsDeltaX] -gt [$_bAbsDeltaY]|[
+            --?[&_bSlopeX] -lt 0|&_bOp;-ge|&_bOp;-le
+            --&_bFastAxis|X
+            --&_bSlowAxis|Y
+            -->LogMessage|DEBUG;X is fast axis and slope operator is [&_bOp]
+        --]|[
+            --?[&_bSlopeY] -lt 0|&_bOp;-ge|&_bOp;-le
+            --&_bFastAxis|Y
+            --&_bSlowAxis|X
+            -->LogMessage|DEBUG;Y is fast axis and slope operator is [&_bOp]
+        --]|
+        --&_bCurrentSlow|[&_b[&_bSlowAxis]0]
+        --%_bCurrentFast|[&_b[&_bFastAxis]0];[&_b[&_bFastAxis]1];[&_bSlope[&_bFastAxis]]
+            --?"[&_bFastAxis]" -eq "X"|[
+                --?"[%7%]X" -eq "X"|BresenhamPushFast
+                -->LogMessage|DEBUG;Checking BresenhamPushFast for original squares [&_bCurrentFast],[&_bCurrentSlow]
+                --~_origsqChk|array;indexof;[%7%];[&_bCurrentFast],[&_bCurrentSlow]
+                -->LogMessage|DEBUG;OrigSqChk result [&_origsqChk]
+                --?"[&_origsqChk]" -ne "ArrayError"|BresenhamPostPush
+                --:BresenhamPushFast|
+                -->_GridPushToArray|[%6%];[&_bCurrentFast],[&_bCurrentSlow]
+            --]|[
+                --?"[%7%]X" -eq "X"|BresenhamPushSlow
+                -->LogMessage|DEBUG;Checking BresenhamPushSlow for original squares [&_bCurrentSlow],[&_bCurrentFast]
+                --~_origsqChk|array;indexof;[%7%];[&_bCurrentSlow],[&_bCurrentFast]
+                --?"[&_origsqChk]" -ne "ArrayError"|BresenhamPostPush
+                -->LogMessage|DEBUG;OrigSqChk result [&_origsqChk]
+                --:BresenhamPushSlow|
+                -->_GridPushToArray|[%6%];[&_bCurrentSlow],[&_bCurrentFast]
+            --]|
+            --:BresenhamPostPush|
+            --=_bEspilon|[$_bEspilon] + [$_bAbsDelta[&_bSlowAxis]]
+            --?[= [$_bEspilon] * 2 ] -ge [$_bAbsDelta[&_bFastAxis]]|[
+                --&_bCurrentSlow|[= [&_bCurrentSlow] + [&_bSlope[&_bSlowAxis]] ]
+                --=_bEspilon|[$_bEspilon] - [$_bAbsDelta[&_bFastAxis]]
+            --]|
+        --%|
+    --<|
+
+    --:MultiSquareTokenSquares|TopLeftSquareCoordinates;TokenWidthInSquares;TokenHeightInSquares;ArrayNameForSquares;OriginalSquaresArray(optional)
+        --~_mstsTopLeft|string;split;,;[%1%]
+        -->LogMessage|DEBUG;MSTS C:[&_mstsTopLeft1] R:[&_mstsTopLeft2]
+        -->LogMessage|DEBUG;MSTS W:[%2%] H:[%3%]
+        --%_mstsAdditionalCol|0;[= [%2%] - 1];1
+            --&_mstsNewCol|[= [&_mstsTopLeft1] + [&_mstsAdditionalCol]]
+            --%_mstsAdditionalRow|0;[= [%3%] - 1];1
+                --&_mstsNewRow|[= [&_mstsTopLeft2] + [&_mstsAdditionalRow]]
+                -->LogMessage|DEBUG;MSTS NewC:[&_mstsNewCol] NewR:[&_mstsNewRow]
+                --?"[%5%]X" -ne "X"|[
+                    --~_mstsOSChk|array;indexof;[%5%];[&_mstsNewCol],[&_mstsNewRow]
+                    -->LogMessage|DEBUG;MSTS Original Squares Sent [&_mstsOSChk]
+                    --?"[&_mstsOSChk]" -ne "ArrayError"|_MSTSPostPush
+                --]|
+                --:_MSTSPushToArray|
+                -->_GridPushToArray|[%4%];[&_mstsNewCol],[&_mstsNewRow]
+                --:_MSTSPostPush|
+            --%|
+        --%|
+    --<|
+
+    --/|Will check if the entry is already present
+    --/|This will avoid duplicate entries from the path functions
+    --:_GridPushToArray|ArrayName;StringToPush;AllowDuplicatesBoolean(optional,default:0)
+        --?[%3%] -eq 1|_GPTAPush
+        --~_gptaArrChk|array;indexof;[%1%];[%2%]
+        --?"[&_gptaArrChk]" -ne "ArrayError"|<
+        --:_GPTAPush|
+        --~|array;add;[%1%];[%2%]
+    --<|
+
+    --:CheckRectangularOverlapByCoordinates|CoordinatesHashTable;CoordinatesHashTable;Inset;BooleanReturnVariable
+        -->GetTokenIDFromCoordinatesHash|[%1%];_crobcT1
+        -->GetTokenIDFromCoordinatesHash|[%2%];_crobcT2
+        -->LogMessage|DEBUG;T1:[&_crobcT1] T2:[&_crobcT2]
+
+        --=_crobcL1x|[:[%1%]("[&_crobcT1]_Lx")] + [%3%]
+        --=_crobcL1y|[:[%1%]("[&_crobcT1]_Ly")] + [%3%]
+        --=_crobcR1x|[:[%1%]("[&_crobcT1]_Rx")] - [%3%]
+        --=_crobcR1y|[:[%1%]("[&_crobcT1]_Ry")] - [%3%]
+
+        --=_crobcL2x|[:[%2%]("[&_crobcT2]_Lx")] + [%3%]
+        --=_crobcL2y|[:[%2%]("[&_crobcT2]_Ly")] + [%3%]
+        --=_crobcR2x|[:[%2%]("[&_crobcT2]_Rx")] - [%3%]
+        --=_crobcR2y|[:[%2%]("[&_crobcT2]_Ry")] - [%3%]
+
+        --&[%4%]|1
+        -->LogMessage|DEBUG;[$_crobcL1x] > [$_crobcR2x] or [$_crobcL2x] > [$_crobcR1x]
+        -->LogMessage|DEBUG;[$_crobcR1y] < [$_crobcL2y] or [$_crobcR2y] < [$_crobcL1y]
+        --?[$_crobcL1x] -gt [$_crobcR2x] -or [$_crobcL2x] -gt [$_crobcR1x]|&[%4%];0
+        --?[$_crobcR1y] -lt [$_crobcL2y] -or [$_crobcR2y] -lt [$_crobcL1y]|&[%4%];0
+    --<|
+
+    --:SetHashValueAndLog|HashtableName;KeyName;Value;MessageLevel;Message
+        -->LogMessage|DEBUG;Inside set hash value and log called with [@args(length)] parameters
+        --h:[%1%]("[%2%]")|[%3%]
+        -->LogMessage|[%4%];[%5%]
+    --<|
+
+    --:LogMessage|MessageLevel;Message
+        --&_lmPrefix|SC change:graphic trigger
+        --&_lmMessageLevel|[%1%]
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "fatal"|_lmSENDTOCONSOLE
+        --&_lmNum|1
+        --?"[&LogLevel(tolowercase)]" -eq "warn"|&_lmNum;10
+        --?"[&LogLevel(tolowercase)]" -eq "info"|&_lmNum;100
+        --?"[&LogLevel(tolowercase)]" -eq "debug"|&_lmNum;1000
+        --&_lmMLNum|1
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "warn"|&_lmMLNum;10
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "info"|&_lmMLNum;100
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "debug"|&_lmMLNum;1000
+        --?[&_lmMLNum] -gt [&_lmNum]|_ENDLOG
+        --:_lmSENDTOCONSOLE|
+        --\log|[&_lmPrefix] [&_lmMessageLevel(touppercase)]: [%2%]
+        --?"[&_lmMessageLevel(tolowercase)]" -eq "fatal"|Done
+        --:_ENDLOG|
+    --<|
+
+    --:_CheckForOutput|TriggerTokenID;TriggeringTokenID
+        -->LogMessage|DEBUG;Inside _CheckForOutput function called with [%1%] and [%2%]
+        -->LogMessage|DEBUG;Checking if all 3 output locations are set since that is not supported
+        --?"[*[%1%]:t-[&WhisperToGMLocation]]X" -ne "X" -and "[*[%1%]:t-[&WhisperToTriggererLocation]]X" -ne "X" -and "[*[%1%]:t-[&BroadcastToChatLocation]]X" -ne "X"|_cfoENDFUNC
+        -->LogMessage|DEBUG;All 3 output locations are not set. continuing with output checks
+        --?"[*[%1%]:t-[&WhisperToGMLocation]]X" -ne "X"|>_WhisperToGM;[%1%]
+        --?"[*[%1%]:t-[&WhisperToTriggererLocation]]X" -ne "X"|>_WhisperToTriggerer;[%1%];[%2%]
+        --?"[*[%1%]:t-[&BroadcastToChatLocation]]X" -ne "X"|>_BroadcastToChat;[%1%]
+        --:_cfoENDFUNC|
+        -->LogMessage|DEBUG;Reached the end of _CheckForOutput function
+    --<|
+
+    --:_WhisperToGM|TriggerTokenID
+        -->LogMessage|DEBUG;Inside _WhisperToGM function
+        --*|[*[%1%]:t-[&WhisperToGMLocation]]
+        -->LogMessage|DEBUG;Leaving _WhisperToGM function
+    --<|
+
+    --:_WhisperToTriggerer|TriggerTokenID;TriggeringTokenID
+        -->LogMessage|DEBUG;Inside _WhisperToTriggerer function
+        --?"[*[%1%]:t-[&BroadcastToChatLocation]]X" -eq "X"|_wttSetWhisperParameter
+        -->LogMessage|DEBUG;Setting gmoutputtarget parameter to triggering character
+        --#gmoutputtarget|[*[%2%]:character_name]
+        --*|[*[%1%]:t-[&WhisperToTriggererLocation]]
+        --^_wttENDOFWHISPERTOTRIGGER|
+
+        --:_wttSetWhisperParameter|
+        -->LogMessage|DEBUG;Setting whisper parameter to triggering character
+        --#hidecard|0
+        --#hideTitleCard|1
+        --#whisper|[*[%2%]:character_name]
+        --+|[*[%1%]:t-[&WhisperToTriggererLocation]]
+
+        --:_wttENDOFWHISPERTOTRIGGER|
+        -->LogMessage|DEBUG;Leaving _WhisperToTriggerer function
+    --<|
+
+    --:_BroadcastToChat|TriggerTokenID
+        -->LogMessage|DEBUG;Inside _BroadcastToChat function
+        --#hidecard|0
+        --#hideTitleCard|1
+        --+|[*[%1%]:t-[&BroadcastToChatLocation]]
+        -->LogMessage|DEBUG;Leaving _BroadcastToChat function
+    --<|
+
+    --:_Playaudio|TriggerTokenID
+        -->LogMessage|DEBUG;Play audio for trigger [%1%] audio loc [&PlayaudioLocation] track [*[%1%]:t-[&PlayaudioLocation]]
+        --a|[*[%1%]:t-[&PlayaudioLocation]]
+    --<|
+
+    --:_DisplayVFX|TriggerTokenID
+        -->LogMessage|DEBUG;Play vfx for trigger [%1%] vfx loc [&VisualEffectLocation] track [*[%1%]:t-[&VisualEffectLocation]]
+        --vtoken|[%1%] [*[%1%]:t-[&VisualEffectLocation]]
+    --<|
+
+    --:_BuiltinDescription|TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
+        -->LogMessage|DEBUG;Read description at [%1%] triggered by [%2%] at [%3%] with area of [%4%]
+        -->_CheckForOutput|[%1%];[%2%]
+    --<|
+
+    --:_BuiltinPlayaudio|TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
+        -->_Playaudio|[%1%]
+        -->_CheckForOutput|[%1%];[%2%]
+        --?"[*[%1%]:t-[&VisualEffectLocation]]X" -ne "X"|>_DisplayVFX;[%1%]
+    --<|
+
+    --:_MoveTokenToGridSquare|TokenIDToMove;Location;StringVariableForReturn
+        -->LogMessage|DEBUG;Inside _MoveTokenToGridSquare with [%1%] and coordinates of [%2%]
+        -->_GetPositionFromLocation|[%1%];[%2%];[*[%1%]:t-_pageid];_mttgsLeft;_mttgsTop
+        -->LogMessage|DEBUG;MoveToGridSquare left destination [&_mttgsLeft] top destination [&_mttgsTop]
+        --!t:[%1%]|top:[&_mttgsTop]|left:[&_mttgsLeft]
+        --&[%3%]|1
+        -->LogMessage|DEBUG;Finished with _MoveTokenToGridSquare function
+    --<|
+
+    --:_GetPositionFromLocation|TokenID;Location;PageID;StringVariableForLeft;StringVariableForTop
+        -->LogMessage|DEBUG;Inside _GetPositionFromLocation with token [%1%] and location [%2%]
+        -->GetTokenSizeInGridSquares|[%1%];_gpflWidth;_gpflHeight
+        -->GetSquareSizeForPage|[%3%];_gpflPixelSize
+        -->LogMessage|DEBUG;_GetPositionFromLocation token size [&_gpflHeight] [&_gpflWidth] pixel size [&_gpflPixelSize]
+        --&_gpflPageWidth|[*O:[%3%]:page:width]
+        --&_gpflPageHeight|[*O:[%3%]:page:height]
+        -->LogMessage|DEBUG;_GetPositionFromLocation page size [&_gpflPageWidth] by [&_gpflPageHeight]
+        --~_gpflDest|string;split;,;[%2%]
+        -->LogMessage|DEBUG;_GetPositionFromLocation destination [&_gpflDest1] and [&_gpflDest2]
+        --?"[&_gpflDest1]" -le 0 -or "[&_gpflDest1(isnumeric)]" -eq 0|>LogMessage;FATAL;Teleport coordinates of [%2%] are not valid. exiting
+        --?"[&_gpflDest2]" -le 0 -or "[&_gpflDest2(isnumeric)]" -eq 0|>LogMessage;FATAL;Teleport coordinates of [%2%] are not valid. exiting
+        --?"[&_gpflDest1]" -gt "[&_gpflPageWidth]"|&_gpflDest1;[&_gpflPageWidth]
+        --?"[&_gpflDest2]" -gt "[&_gpflPageHeight]"|&_gpflDest2;[&_gpflPageHeight]
+        --?"[= [&_gpflDest1] - [&_gpflWidth] ]" -le 0|&_gpflLeftSquare;0|&_gpflLeftSquare;[= [&_gpflDest1] - [&_gpflWidth] ]
+        --?"[= [&_gpflDest2] - [&_gpflHeight] ]" -le 0|&_gpflTopSquare;0|&_gpflTopSquare;[= [&_gpflDest2] - [&_gpflHeight] ]
+        -->LogMessage|DEBUG;_GetPositionFromLocation left square [&_gpflLeftSquare] and [&_gpflTopSquare]
+        --&_gpflLeftCenter|[= [&_gpflWidth] / 2 * [&_gpflPixelSize] ]
+        --&_gpflTopCenter|[= [&_gpflHeight] / 2 * [&_gpflPixelSize] ]
+        -->LogMessage|DEBUG;_GetPositionFromLocation left center [&_gpflLeftCenter] and top center [&_gpflTopCenter]
+        --&[%4%]|[= [&_gpflLeftSquare] * [&_gpflPixelSize] + [&_gpflLeftCenter] ]
+        --&[%5%]|[= [&_gpflTopSquare] * [&_gpflPixelSize] + [&_gpflTopCenter] ]
+        -->LogMessage|DEBUG;Finished with _GetPositionFromLocation function
+    --<|
+
+    --:_MoveTokenToTargetToken|TokenIDToMove;TokenIDofTarget;StringVariableForReturn
+        -->LogMessage|DEBUG;Inside _MoveTokenToTargetToken with token id to move [%1%] and target token id of [%2%]
+        --&_mttttNewLeft|[*[%2%]:t-left]
+        --&_mttttNewTop|[*[%2%]:t-top]
+        --?[&_mttttNewLeft(isnumeric)] -eq 0 -or [&_mttttNewTop(isnumeric)] -eq 0|>LogMessage;FATAL;Failed to get top and left positions from target token [%2%].Check that is a valid token id. exiting
+        --?"[*[%1%]:t-_pageid]" -ne "[*[%2%]:t-_pageid]"|>LogMessage;FATAL;Token to move [%1%] not on the same page as target token [%2%]. Check [&TeleportLocation]. exiting
+        --!t:[%1%]|top:[&_mttttNewTop]|left:[&_mttttNewLeft]
+        --&[%3%]|1
+        -->LogMessage|DEBUG;Finished with _MoveTokenToTargetToken function
+    --<|
+
+    --:_ProcessTeleportToAnotherPage|TriggerTokenID;TriggeringTokenID;StringReturnVariable
+        -->LogMessage|DEBUG;Inside _ProcessTeleportToAnotherPage with trigger id [%1%] and triggering token id of [%2%]
+        --~_pttapInfo|string;split;#;[*[%1%]:t-[&TeleportLocation]]
+        --?[$_pttapInfoCount] -ne 2|>LogMessage;FATAL;Teleport to another paged failed to split on # into 2 parameters of page name and location. Check [&TeleportLocation]. exiting
+        --&_pttapPageName|[&_pttapInfo1]
+        --~|array;objects:page;_pttapPageLookup;[&_pttapPageName]
+        --?[@_pttapPageLookup(length)] -eq 0|>LogMessage;FATAL;Could not find a page named [&_pttapPageName]. Check [&TeleportLocation] for pagename#Location accuracy. exiting
+        --?[@_pttapPageLookup(length)] -ge 2|>LogMessage;FATAL;Page lookup returned multiple pages with name starting with [&_pttapPageName]. Check [&TeleportLocation] for page name that will only return 1 value. exiting due to ambiguous page lookup
+        --?"[&_pttapInfo2]" -match "^\d+,\d+$"|&_pttapCoordinates;true|&_pttapCoordinates;false
+        --?"[@_pttapPageLookup(0)]" -eq "[*[%1%]:t-_pageid]" -and "[&_pttapCoordinates]" -eq "true"|>_MoveTokenToGridSquare;[%2%];[&_pttapInfo2];[%3%]
+        --?"[%3%]" -eq 0 -and "[@_pttapPageLookup(0)]" -eq "[*[%1%]:t-_pageid]" -and "[&_pttapCoordinates]" -eq "false"|>_MoveTokenToTargetToken;[%2%];[&_pttapInfo2];[%3%]
+        --?"[%3%]" -eq 1|_ENDPROCESSTELEPORTTOANOTHERPAGE
+        --~_pttapExistsCount|array;pagetokens;_pttapExistingTokenArr;[@_pttapPageLookup(0)];tprop:represents=[*[%2%]:t-represents]
+        -->LogMessage|DEBUG;Found [&_pttapExistsCount] tokens matching [%2%] represents on new page
+        --?"[&_pttapExistsCount]" -ge 2|>LogMessage;FATAL;Page target [&_pttapPageName] contains multiple tokens representing the triggering token. exiting due to ambiguity
+        --?"[*[%2%]:t-controlledby]X" -eq "X"|>LogMessage;FATAL;Teleport triggering token does not have a player controlling them to move to a new page. exiting
+        --?"[*[%2%]:t-controlledby]" -eq "all" -or "[*[%2%]:t-controlledby]" -inc ","|>LogMessage;FATAL;Teleport triggering token has ambiguous player controlledby field. Can only move a single player on a teleport. exiting
+        --?"[&_pttapCoordinates]" -eq "true"|_pttapCoordinateLocationProcessing
+        --?"[*[&_pttapInfo2]:t-_pageid]" -ne "[@_pttapPageLookup(0)]"|>LogMessage;FATAL;Teleport target token [&_pttapInfo2] not found on target page [&_pttapPageName]. exiting
+        --&_pttapNewTop|[*[&_pttapInfo2]:t-top]
+        --&_pttapNewLeft|[*[&_pttapInfo2]:t-left]
+        --?[&_pttapNewLeft(isnumeric)] -eq 0 -or [&_pttapNewTop(isnumeric)] -eq 0|>LogMessage;FATAL;Unable to get top and left coordinates from target token [&_pttapInfo2]. exiting
+        --:_pttapCoordinateLocationProcessing|
+        --?"[&_pttapCoordinates]" -eq "false"|_pttapBuildOverrides
+        -->_GetPositionFromLocation|[%2%];[&_pttapInfo2];[@_pttapPageLookup(0)];_pttapNewLeft;_pttapNewTop
+        --?[&_pttapNewLeft(isnumeric)] -eq 0 -or [&_pttapNewTop(isnumeric)] -eq 0|>LogMessage;FATAL;Unable to get top and left coordinates from location [&_pttapInfo2]. exiting
+        --:_pttapBuildOverrides|
+        --~|hash;set;_pttapTokenOverrideHash;top==[&_pttapNewTop];left==[&_pttapNewLeft];layer==objects;_pageid==[@_pttapPageLookup(0)]
+        --?"[&_pttapExistsCount]" -eq 0|>_SpawnNewToken;[%2%];_pttapTokenOverrideHash|>_MoveAndUpdateToken;[@_pttapExistingTokenArr(0)];[%2%];_pttapTokenOverrideHash
+        -->_ChangeTokenLayer|[%2%];gmlayer
+        -->_MovePlayerToNewPage|[*[%2%]:t-controlledby];[@_pttapPageLookup(0)]
+        --:_ENDPROCESSTELEPORTTOANOTHERPAGE|
+        --&[%3%]|1
+        -->LogMessage|DEBUG;Finished with _ProcessTeleportToAnotherPage function
+    --<|
+
+    --:_SpawnNewToken|SourceTokenToCopy;TokenPropertyOverrideHash
+        -->LogMessage|DEBUG;Inside _SpawnNewToken
+        --?"[*[%1%]:t-imgsrc]" -inc "market"|>LogMessage;FATAL;Due to Roll20 API limitations on marketplace images unable to spawn a new token for [%1%] on a new page. exiting
+        --~|array;fromkeys;_sntOverrideKeys;[%2%]
+        --~|array;define;_sntTokenProps
+        --~|hash;fromobject;_sntSourceHash;graphic;[%1%]
+        --~|array;fromkeys;_sntSourceKeys;_sntSourceHash
+        --~|array;define;_sntSkipArr;[&TokenPropertiesSkipSpawn]
+        --~|array;define;_sntNullableArr;[&TokenPropertiesNullable]
+        --~|array;define;_sntFalseableArr;[&TokenPropertiesTrueFalse]
+        --%_sntKey|foreach;_sntSourceKeys
+            --~_sntIdx|array;indexof;_sntOverrideKeys;[&_sntKey]
+            --?"[&_sntIdx]" -ne "ArrayError"|%
+            --~_sntSkipIdx|array;indexof;_sntSkipArr;[&_sntKey]
+            --?"[&_sntSkipIdx]" -ne "ArrayError"|%
+            --~_sntNullIdx|array;indexof;_sntNullableArr;[&_sntKey]
+            --?"[&_sntNullIdx]" -ne "ArrayError" -and "[:_sntSourceHash("[&_sntKey]")]" -eq "null"|%
+            --~_sntFalseIdx|array;indexof;_sntFalseableArr;[&_sntKey]
+            --?"[&_sntFalseIdx]" -ne "ArrayError" -and "[:_sntSourceHash("[&_sntKey]")]" -eq "false"|%
+            --~|array;add;_sntTokenProps;[&_sntKey]:"[:_sntSourceHash("[&_sntKey]")]"
+        --%|
+        --%_sntOverKey|foreach;_sntOverrideKeys
+            --~|array;add;_sntTokenProps;[&_sntOverKey]:[:[%2%]("[&_sntOverKey]")]
+        --%|
+        --~_sntTokenPropList|array;stringify;_sntTokenProps;|
+        --!ot:_sntNewTID|[&_sntTokenPropList]
+        -->LogMessage|DEBUG;Teleport trigger spawned new token [&_sntNewTID] on new page
+        -->LogMessage|DEBUG;Finished with _SpawnNewToken function
+    --<|
+
+    --/|For existing tokens, skip the imgsrc and sides properties to avoid the restriction on marketplace images
+    --:_MoveAndUpdateToken|ExistingTokenIDtoMove;SourceTokenToCopy;TokenPropertyOverrideHash
+        -->LogMessage|DEBUG;Inside _MoveAndUpdateToken
+        --~|array;fromkeys;_mautOverrideKeys;[%3%]
+        --~|array;define;_mautTokenProps
+        --~|hash;fromobject;_mautSourceHash;graphic;[%2%]
+        --~|array;fromkeys;_mautSourceKeys;_mautSourceHash
+        --~|array;define;_mautQuoteProps;[&TokenPropertiesToQuote]
+        --~|array;define;_mautSkipProps;[&TokenPropertiesSkipSync]
+        --%_mautKey|foreach;_mautSourceKeys
+            --~_mautIdx|array;indexof;_mautOverrideKeys;[&_mautKey]
+            --?"[&_mautIdx]" -ne "ArrayError"|%
+            --~_mautSkipIdx|array;indexof;_mautSkipProps;[&_mautKey]
+            --?"[&_mautSkipIdx]" -ne "ArrayError"|%
+            --~_mautQuoteIdx|array;indexof;_mautQuoteProps;[&_mautKey]
+            --?"[&_mautQuoteIdx]" -ne "ArrayError"|_mautQuotePropSection
+            --~|array;add;_mautTokenProps;[&_mautKey]:[:_mautSourceHash("[&_mautKey]")]
+            --^_mautENDPROPLOOP|
+            --:_mautQuotePropSection|
+            --~|array;add;_mautTokenProps;[&_mautKey]:"[:_mautSourceHash("[&_mautKey]")]"
+            --:_mautENDPROPLOOP|
+        --%|
+        --%_mautOverKey|foreach;_mautOverrideKeys
+            --~|array;add;_mautTokenProps;[&_mautOverKey]:[:[%3%]("[&_mautOverKey]")]
+        --%|
+        --~_mautTokenPropsList|array;stringify;_mautTokenProps;|
+        --!t:[%1%]|[&_mautTokenPropsList]
+        -->LogMessage|DEBUG;Teleport trigger used existing token [%1%] on page with syncd properties
+        -->LogMessage|DEBUG;Finished with _MoveAndUpdateToken function
+    --<|
+
+    --:_BuiltinTeleport|TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
+        -->LogMessage|DEBUG;Teleport at [%1%] triggered by [%2%] at [%3%] with area of [%4%] and TeleportLocation of [*[%1%]:t-[&TeleportLocation]]
+        --&_bitTeleportProcessed|0
+        --&_bitRawValue|[*[%1%]:t-[&TeleportLocation]]
+        --?"[&_bitRawValue]" -inc "#"|>_ProcessTeleportToAnotherPage;[%1%];[%2%];_bitTeleportProcessed
+        --?"[&_bitTeleportProcessed]" -eq 0 -and "[&_bitRawValue]" -match "^\d+,\d+$"|>_MoveTokenToGridSquare;[%2%];[&_bitRawValue];_bitTeleportProcessed
+        --?"[&_bitTeleportProcessed]" -eq 0|>_MoveTokenToTargetToken;[%2%];[*[%1%]:t-[&TeleportLocation]];_bitTeleportProcessed
+        --?"[&_bitTeleportProcessed]" -eq 0|>LogMessage;ERROR;Failed to process teleport trigger.
+
+        -->_CheckForOutput|[%1%];[%2%]
+        --?"[*[%1%]:t-[&VisualEffectLocation]]X" -ne "X"|>_DisplayVFX;[%1%]
+        --?"[*[%1%]:t-[&PlayaudioLocation]]X" -ne "X"|>_Playaudio;[%1%]
+        -->LogMessage|DEBUG;Finished with _BuiltinTeleport function
+    --<|
+
+    --:_ChangeTokenLayer|TokenIDToChangeLayer;DestinationLayer
+        -->LogMessage|DEBUG;Inside _ChangeTokenLayer with token id [%1%] and layer of [%2%]
+        --~|array;define;_ctlLayerArr;[&_layerOptions]
+        --~_ctlLayerCheck|array;indexof;_ctlLayerArr;[%2%]
+        --?"[&_ctlLayerCheck]" -eq "ArrayError"|>LogMessage;FATAL;Layer [%2%] not in available list of layers _layerOptions. exiting
+        --!t:[%1%]|layer:[%2%]
+        -->LogMessage|DEBUG;Finished with _ChangeTokenLayer function
+    --<|
+
+    --:_MovePlayerToNewPage|PlayerID;PageID
+        -->LogMessage|DEBUG;Inside _MovePlayerToNewPage with player id [%1%] and page id of [%2%]
+        --~|hash;getplayerspecificpages;_mptnpHash
+        --h:_mptnpHash("[%1%]")|[%2%]
+        --~|hash;setplayerspecificpages;_mptnpHash
+        -->LogMessage|DEBUG;Finished with _MovePlayerToNewPage function
+    --<|
+
+    --:_BuiltinAmbush|TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
+        -->LogMessage|DEBUG;Ambush at [%1%] triggered by [%2%] at [%3%] with area of [%4%]
+
+        --~|array;define;_biaTokenArr;[*[%1%]:t-[&AmbushLocation]]
+        --%_biaTID|foreach;_biaTokenArr
+            -->LogMessage|DEBUG;Ambush checking if [&_biaTID] is on the same page
+            --?"[*[&_biaTID]:t-_pageid]" -ne "[*[%1%]:t-_pageid]"|%
+            -->LogMessage|DEBUG;Ambush confirmed [&_biaTID] on the page. sendng to change layer
+            -->_ChangeTokenLayer|[&_biaTID];objects
+        --%|
+        
+        --?"[*[%1%]:t-[&VisualEffectLocation]]X" -ne "X"|>_DisplayVFX;[%1%]
+        --?"[*[%1%]:t-[&PlayaudioLocation]]X" -ne "X"|>_Playaudio;[%1%]
+        -->_CheckForOutput|[%1%];[%2%]
+        -->LogMessage|DEBUG;Finished with _BuiltinAmbush function
+    --<|
+
+    --:_RunCustomAbility|AbilityName;TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
+        -->LogMessage|DEBUG;Run custom ability named [%1%] at [%2%] triggered by [%3%] at [%4%] with area of [%5%] with character name of [&CustomAbilityMule]
+        --~|array;objects:character;_rcaCharArr;[&CustomAbilityMule]
+        --?"[@_rcaCharArr(0)]X" -eq "X"|>LogMessage;FATAL;Run custom ability failed to find character mule named [&CustomAbilityMule]. Confirm mule exists with the correct name. exiting
+        --~|array;objects:ability;_rcaAbilityArr;[%1%];[@_rcaCharArr(0)]
+        --?"[@_rcaAbilityArr(0)]X" -eq "X"|>LogMessage;FATAL;Run custom ability failed to find ability named [%1%] on mule named [&CustomAbilityMule]. Confirm correct name for both. exiting
+        --~|system;runaction;[@_rcaCharArr(0)];[%1%];[%2%];[%3%];[%4%];[%5%]
+        -->LogMessage|DEBUG;Finished with _RunCustomAbility function
+    --<|
+
+    --:_DeactivateTrigger|TriggerTokenID
+        -->LogMessage|DEBUG;Deactivating trigger token [%1%] named [*[%1%]:t-name]
+        --!t:[%1%]|statusmarkers:
+    --<|
+}}

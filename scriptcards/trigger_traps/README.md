@@ -71,6 +71,12 @@ The other options are optional and if omitted will use their default values.
 
 Note that `ReturnTokenOnStop` option is not yet implemented that would move the token back to the triggering location for a token set to `stop`.
 
+Examples:
+* `trigger:ambush` - Ambush trigger with an area of `area`, ie both ground and air, `onetime` so will only trigger when the status marker set as the `ActivationMaker` is present, and `stop`, meaning no other triggers will be triggered regardless of the token's following movement.
+* `trigger:ground:alwaysactive:teleport` - Teleport trigger with area of ground meaning tokens with the FlyingMarker status marker will not trigger is always active and stop other triggers from processing.
+* `trigger:continue:description` - Display text when either flying and non-flying tokens enter and continue processing other triggers if the triggering token moves into their areas.
+* `trigger:air:Earthbind` - Tokens with the FlyingMarker status marker will trigger and an ability named `Earthbind` will be run. Defaults of `onetime` and `stop`.
+
 ## Configuration
 
 ### General Configuration

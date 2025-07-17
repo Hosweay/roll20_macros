@@ -102,6 +102,10 @@ Examples:
 
 Note: Currently setting all 3 text fields will result in an error. Only 1 or 2 text fields can be set and work.
 
+## Known Limitations
+
+Currently only pages with a square grid are supported. Pages with the grid disabled or set to hexes are not currently supported.
+
 ## Utility Script
 
 In addition to the trigger, there is also another ScriptCard to help manage triggers. The Trigger Manager utility will spawn a new trigger token, activate existing triggers, and edit and save trigger trap configuration variables.

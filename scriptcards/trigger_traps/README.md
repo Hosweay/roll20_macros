@@ -106,6 +106,8 @@ Note: Currently setting all 3 text fields will result in an error. Only 1 or 2 t
 
 Currently only pages with a square grid are supported. Pages with the grid disabled or set to hexes are not currently supported.
 
+Stacking trigger traps is not supported. Not saying it definitely will not work but it there may be unexpected results. If you have a real use case for needing stacked trigger trap tokens, please open a Github issue describing the use case and what you are looking to accomplish.
+
 ## Utility Script
 
 In addition to the trigger, there is also another ScriptCard to help manage triggers. The Trigger Manager utility will spawn a new trigger token, activate existing triggers, and edit and save trigger trap configuration variables.

@@ -18,7 +18,7 @@ Trigger traps can use one of the built-in options or will run a custom ability s
 
 ### Built-In Actions
 
-There are four built-in actions that can be run, description, playaudio, teleport, and ambush. Built-in types can optionally run additional actions if those locations are set. The additional actions are send text to one or two locations, play an audio track, or perform a visual effect.
+There are four built-in actions that can be run: description, playaudio, teleport, and ambush. Built-in types can optionally run additional actions if those locations are set. The additional actions are send text to one or two locations, play an audio track, or perform a visual effect.
 
 #### Description Action
 

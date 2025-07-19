@@ -1,13 +1,14 @@
 !script {{
-    --/|Version: 0.0.17
+    --/|Version: 0.0.18
 
     --&LogLevel|info
 
-    --&TriggerTokenimgsrc|https://files.d20.io/images/355488343/wfxBEg-Ro5pNsnkVX5RS5A/max.png?1692551112
-    --&TriggerTokenaura1_radius|0
-    --&TriggerTokenaura1_color|#f6b26b
-    --&TriggerTokenaura1_square|true
-    --&TriggerTokenlayer|gmlayer
+    --&TriggerPropertyPrefix|TriggerToken
+    --&[&TriggerPropertyPrefix]imgsrc|https://files.d20.io/images/355488343/wfxBEg-Ro5pNsnkVX5RS5A/max.png?1692551112
+    --&[&TriggerPropertyPrefix]aura1_radius|0
+    --&[&TriggerPropertyPrefix]aura1_color|#f6b26b
+    --&[&TriggerPropertyPrefix]aura1_square|true
+    --&[&TriggerPropertyPrefix]layer|gmlayer
 
     --&EnableTriggerDetection|true
     --&ReturnTokenOnStop|true
@@ -326,9 +327,23 @@
 
     --:ShowConfig|
         --#hidecard|0
-        --~|array;define;_scConfigVar;[&ConfigVariableList]
-        --%_scCVar|foreach;_scConfigVar
-            --+[&_scCVar]|"[&[&_scCVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new config value}%%%[&_scCVar][/rbutton]
+        --~|array;define;_scMiscConfigVar;[&MiscConfigList]
+        --~|array;define;_scSpawnConfigVar;[&TriggerTokenConfigList]
+        --~|array;define;_scLocationConfigVar;[&TriggerLocationConfigList]
+
+        --+|[c][b]Trigger Spawn Properties[/b][/c]
+        --%_scSpawnVar|foreach;_scSpawnConfigVar
+            --+[&_scSpawnVar([&TriggerPropertyPrefix(length)])]|"[&[&_scSpawnVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new config value}%%%[&_scSpawnVar][/rbutton]
+        --%|
+
+        --+|[br][c][b]Trigger Location Config[/b][/c]
+        --%_scSLocVar|foreach;_scLocationConfigVar
+            --+[&_scSLocVar]|"[&[&_scSLocVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new config value}%%%[&_scSLocVar][/rbutton]
+        --%|
+
+        --+|[br][c][b]Misc. Config[/b][/c]
+        --%_scMiscVar|foreach;_scMiscConfigVar
+            --+[&_scMiscVar]|"[&[&_scMiscVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new config value}%%%[&_scMiscVar][/rbutton]
         --%|
     --^Done|
 

@@ -1,5 +1,5 @@
 !script {{
-    --/|Version: 0.0.9
+    --/|Version: 0.0.17
 
     --&LogLevel|info
 
@@ -36,8 +36,10 @@
     --&VisualEffectLocation|bar3_value
     --&PlayaudioLocation|bar3_max
     --&DefaultDescription|WhisperToGM
+    --&TeleportLocation|bar1_value
+    --&AmbushLocation|bar1_value
 
-    --&TriggerLocationConfigList|WhisperToTriggererLocation;WhisperToGMLocation;BroadcastToChatLocation;VisualEffectLocation;PlayaudioLocation
+    --&TriggerLocationConfigList|WhisperToTriggererLocation;WhisperToGMLocation;BroadcastToChatLocation;VisualEffectLocation;PlayaudioLocation;TeleportLocation;AmbushLocation
 
     --&ConfigVariableList|[&MiscConfigList];[&TriggerTokenConfigList];[&TriggerLocationConfigList]
 
@@ -46,6 +48,7 @@
 
     -->LoadConfig|scStoredVariablePrefix;ConfigVariableList
 
+    --&TB|& --&TB|+# --&TB|+64 --&TB|+; --&TB|+{
     --&RQ|? --&RQ|+{
     --#title|Trigger Manager
     --#whisper|self
@@ -88,8 +91,14 @@
         --~|array;fromstring;_ltTriggerArr;,;[:[&scStoredHashname]("[&reentryval]-triggers")]
         --+|[c][b][*O:[&reentryval]:page:name] Trigger List[/b][/c]
         --%_ltTTID|foreach;_ltTriggerArr
-            --?"[*[&_ltTTID]:t-name]" -inc "alwaysactive"|%
-            --+|[j][b][*[&_ltTTID]:t-name][/b] [rbutton]Activate::ReactivateTrigger;[&_ltTTID][/rbutton][/j]
+            --&_ltTmpName|[*[&_ltTTID]:t-name]
+            --&_ltTeleportBtn|
+            --&_ltActivateBtn|[rbutton]Activate::ReactivateTrigger;[&_ltTTID][/rbutton]
+            --?"[&_ltTmpName(-8)]" -eq "teleport"|[
+                --&_ltTeleportBtn|[rbutton]Link Target::TeleportTarget;[&TB]target|TeleportTarget|token_id}%%%[&_ltTTID][/rbutton]
+            --]|
+            --?"[&_ltTmpName]" -inc "alwaysactive"|&_ltActivateBtn;
+            --+|[j][b][&_ltTmpName([&TriggerPrefix(length)])][/b] [&_ltTeleportBtn] [&_ltActivateBtn][/j]
         --%|
         --+Activate All|[rbutton]Activate All::ActivateAllTriggersPage;[&reentryval][/rbutton]
     --^Done|
@@ -133,6 +142,20 @@
         --%|
         --&_ctOutput|+[rbutton]Custom::CreateChoices;[&RQ]Enter ability name}%custom[/rbutton]
         --+|[&_ctOutput]
+    --^Done|
+
+    --/|Adding replace encoding since the # gets dropped by Roll20 chat parsing I think
+    --:TeleportTarget|TargetTokenID%%%TeleportTokenID
+        --&_ttPageName|
+        --~_ttTargetInfo|string;split;%%%;[&reentryval]
+        --?[$_ttTargetInfoCount] -ne 2|>LogMessage;FATAL;Error parsing teleport target. Exiting
+        --?"[*[&_ttTargetInfo1]:t-_pageid]" -ne "[*[&_ttTargetInfo2]:t-_pageid]"|[
+            --&_ttPageName|[*O:[*[&_ttTargetInfo1]:t-_pageid]:page:name]%23
+            --~_ttPageName|string;replaceencoding;[&_ttPageName]
+            -->LogMessage|DEBUG;Target on different page [&_ttPageName]
+        --]|
+        -->LogMessage|INFO;Linking [&_ttPageName][&_ttTargetInfo1] as teleport target at [&TeleportLocation]
+        --!t:[&_ttTargetInfo2]|[&TeleportLocation]:[&_ttPageName][&_ttTargetInfo1]
     --^Done|
 
     --:DisplayOptions|

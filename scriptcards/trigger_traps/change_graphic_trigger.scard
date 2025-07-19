@@ -1,6 +1,6 @@
 !script {{
     --/|Work in progress change:graphic trigger for token collisions with traps
-    --&_triggerVersion|0.0.16
+    --&_triggerVersion|0.0.17
 
     --/|CONFIGURATION VARIABLES
     --&LogLevel|error
@@ -9,6 +9,8 @@
     --&FlyMarker|Flying
     --&ActivationMarker|lightning-helix
     --&CustomAbilityMule|CustomAbilityMule
+
+    --&MiscConfigList|EnableTriggerDetection;ReturnTokenOnStop;FlyMarker;ActivationMarker;CustomAbilityMule
     
     --/|Built-in Configuration
     --&WhisperToTriggererLocation|bar1_max
@@ -35,6 +37,10 @@
     
     --&minimumSCVersion|300120
     --#hidecard|1
+
+    --&TriggerLocationConfigList|WhisperToTriggererLocation;WhisperToGMLocation;BroadcastToChatLocation;VisualEffectLocation;PlayaudioLocation;TeleportLocation;AmbushLocation
+    --&ConfigVariableList|[&MiscConfigList];[&TriggerLocationConfigList]
+    -->LoadConfig|scStoredVariablePrefix;ConfigVariableList
 
     --/|TRIGGER_REPLACEMENTS
     --/|TRAP/TRIGGER DETECTION SECTION
@@ -770,5 +776,9 @@
     --:_DeactivateTrigger|TriggerTokenID
         -->LogMessage|DEBUG;Deactivating trigger token [%1%] named [*[%1%]:t-name]
         --!t:[%1%]|statusmarkers:
+    --<|
+
+    --:LoadConfig|Prefix;ListOfStringVariables
+        --l&[&[%1%]]|[&[%2%]]
     --<|
 }}

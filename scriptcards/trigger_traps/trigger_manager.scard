@@ -1,5 +1,5 @@
 !script {{
-    --/|Version: 0.0.18
+    --/|Version: 0.0.19
 
     --&LogLevel|info
 
@@ -270,12 +270,13 @@
 
     --:SpawnTrigger|
         --#hidecard|0
-        --&bar1_value|
         --?"[&_ctTriggerName]" -eq "ambush"|[
-            --~bar1_value|array;stringify;SC_SelectedTokens
+            --~AmbushValue|array;stringify;SC_SelectedTokens
+            --&_stAmbushLine|[&AmbushLocation]:[&AmbushValue]|
         --]|
         --?"[&_ctTriggerName]" -eq "teleport"|[
-            --&bar1_value|[&reentryval]
+            --&TeleportValue|[&reentryval]
+            --&_stTeleportLine|[&TeleportLocation]:"[&TeleportValue]"|
         --]|
         --?"[&_ctTriggerName]" -eq "playaudio" -and "[&_ctPlayaudio]X" -eq "X"|[
             --&_ctPlayaudio|[&reentryval]
@@ -283,7 +284,9 @@
         --?"[&_ctTriggerName]" -eq "description" -and "[&reentryval]X" -ne "X"|[
             --&_ct[&DefaultDescription]|[&reentryval]
         --]|
-        --!ot:NewTriggerTID|bar1_value:"[&bar1_value]"|
+        --!ot:NewTriggerTID|
+            [&_stAmbushLine]
+            [&_stTeleportLine]
             _pageid:[&_ctPageID]|
             name:"[&_doCurrentName]"|
             imgsrc:"[&TriggerTokenimgsrc]"|

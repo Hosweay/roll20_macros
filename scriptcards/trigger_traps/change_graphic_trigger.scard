@@ -1,6 +1,6 @@
 !script {{
     --/|Work in progress change:graphic trigger for token collisions with traps
-    --&_triggerVersion|0.0.19
+    --&_triggerVersion|0.0.20
 
     --/|CONFIGURATION VARIABLES
     --&LogLevel|error

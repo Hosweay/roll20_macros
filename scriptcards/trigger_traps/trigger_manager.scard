@@ -1,7 +1,8 @@
 !script {{
-    --/|Version: 0.0.20
+    --/|Version: 0.0.21
 
     --&LogLevel|info
+    --&SpawnTriggerActivated|true
 
     --&TriggerPropertyPrefix|TriggerToken
     --&[&TriggerPropertyPrefix]imgsrc|https://files.d20.io/images/449361238/elwGJfLfu72aDhSEFtuelQ/max.png?1752965600
@@ -287,9 +288,13 @@
         --?"[&_ctTriggerName]" -eq "description" -and "[&reentryval]X" -ne "X"|[
             --&_ct[&DefaultDescription]|[&reentryval]
         --]|
+        --?"[&_ctActive]" -ne "alwaysactive" -and "[&SpawnTriggerActivated]" -eq "true"|[
+            --&_stStatusMarkersLine|statusmarkers:"[&ActivationMarker]"|
+        --]|
         --!ot:NewTriggerTID|
             [&_stAmbushLine]
             [&_stTeleportLine]
+            [&_stStatusMarkersLine]
             _pageid:[&_ctPageID]|
             name:"[&_doCurrentName]"|
             imgsrc:"[&TriggerTokenimgsrc]"|

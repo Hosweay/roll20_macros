@@ -65,6 +65,8 @@ Trigger tokens use naming conventions to declare the type of trigger. The smalle
 
 The other options are optional and if omitted will use their default values.
 
+### Trigger Options
+
 * Area - The triggering area for the trap. Valid options are `area`, `ground`, and `air`. Default: `area`. Area will trigger for any token entering the trigger's location. Ground will only trigger if the triggering token does not have the status marker set as the `FlyingMarker`. Air will only trigger if the triggering token does have the status marker set as the `FlyingMarker`.
 * Active - Valid options `onetime` and `alwaysactive`. Default: `onetime`. Onetime triggers will trigger only if the `ActivationMarker` is present and then the `ActivationMaker` is removed. Alwaysactive will remain active after a token triggers it. 
 * ContinueMoving - Valid options are `stop` and `continue`. Default: `stop`. Stop means the first trigger is the only trigger that will be processed. Continue means that additonal token movement could activate additional triggers encountered.
@@ -111,3 +113,37 @@ Stacking trigger traps is not supported. Not saying it definitely will not work 
 ## Utility Script
 
 In addition to the trigger, there is also another ScriptCard to help manage triggers. The Trigger Manager utility will spawn a new trigger token, activate existing triggers, and edit and save trigger trap configuration variables.
+
+### Trigger Manager Actions
+
+#### List Trigger Tokens
+
+#### Create Trigger Tokens
+
+When creating tokens, the **Area**, **Active**, and **Continue** are optional. If they are not set, the manager will show **default** which is the first option in their respective lists. Default options can be found [here](#trigger-options).
+
+#### Show Configuration
+
+Shows the current configuration and allows edits to change the configuration values.
+
+##### Trigger Manager Configuration
+
+* LogLevel - Level of which log messages show. Default: info. Valid options: debug, info, warn, error
+* SpawnTriggerActivated - True/False whether "onetime" activation triggers should spawn already activated. Default: true
+
+##### Trigger Spawn Configuration
+
+###### Token Properties
+
+* imgsrc - URL of the image for the token. Default: URL to a plain square token
+* layer - which page layer to spawn on. Default: gmlayer Valid options: objects, gmlayer, map
+
+###### Color Configuration
+
+These are the hex code values that are used for tint_color token property. Each trigger trap type can be set independently.
+
+* TeleportTokenColor - Default: #ff0000
+* AmbushTokenColor - Default: #00ff00
+* DescriptionTokenColor - Default: #0000ff
+* PlayaudioTokenColor - Default: #ffff00
+* CustomTokenColor - Default: #ff00ff

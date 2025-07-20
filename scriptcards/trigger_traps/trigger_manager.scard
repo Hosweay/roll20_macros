@@ -1,14 +1,16 @@
 !script {{
-    --/|Version: 0.0.19
+    --/|Version: 0.0.20
 
     --&LogLevel|info
 
     --&TriggerPropertyPrefix|TriggerToken
-    --&[&TriggerPropertyPrefix]imgsrc|https://files.d20.io/images/355488343/wfxBEg-Ro5pNsnkVX5RS5A/max.png?1692551112
-    --&[&TriggerPropertyPrefix]aura1_radius|0
-    --&[&TriggerPropertyPrefix]aura1_color|#f6b26b
-    --&[&TriggerPropertyPrefix]aura1_square|true
+    --&[&TriggerPropertyPrefix]imgsrc|https://files.d20.io/images/449361238/elwGJfLfu72aDhSEFtuelQ/max.png?1752965600
     --&[&TriggerPropertyPrefix]layer|gmlayer
+    --&TeleportTokenColor|#ff0000
+    --&AmbushTokenColor|#00ff00
+    --&DescriptionTokenColor|#0000ff
+    --&PlayaudioTokenColor|#ffff00
+    --&CustomTokenColor|#ff00ff
 
     --&EnableTriggerDetection|true
     --&ReturnTokenOnStop|true
@@ -27,7 +29,8 @@
 
     --&MiscConfigList|EnableTriggerDetection;ReturnTokenOnStop;FlyMarker;ActivationMarker;CustomAbilityMule
 
-    --&TriggerTokenConfigList|TriggerTokenimgsrc;TriggerTokenaura1_radius;TriggerTokenaura1_color;TriggerTokenaura1_square;TriggerTokenlayer
+    --&TriggerTokenConfigList|TriggerTokenimgsrc;TriggerTokenlayer
+    --&TriggerColorConfigList|TeleportTokenColor;AmbushTokenColor;DescriptionTokenColor;PlayaudioTokenColor;CustomTokenColor
 
     --/|Built-in Configuration
     --&BuiltInExtras|WhisperToTriggerer;WhisperToGM;BroadcastToChat;Playaudio;VisualEffect
@@ -42,7 +45,7 @@
 
     --&TriggerLocationConfigList|WhisperToTriggererLocation;WhisperToGMLocation;BroadcastToChatLocation;VisualEffectLocation;PlayaudioLocation;TeleportLocation;AmbushLocation
 
-    --&ConfigVariableList|[&MiscConfigList];[&TriggerTokenConfigList];[&TriggerLocationConfigList]
+    --&ConfigVariableList|[&MiscConfigList];[&TriggerTokenConfigList];[&TriggerLocationConfigList];[&TriggerColorConfigList]
 
     --l:[&scStoredVariablePrefix]|[&scStoredVariableList]
     --~|array;fromkeys;TriggerTokenKeys;[&scStoredHashname]
@@ -291,9 +294,7 @@
             name:"[&_doCurrentName]"|
             imgsrc:"[&TriggerTokenimgsrc]"|
             layer:[&TriggerTokenlayer]|
-            aura1_square:[&TriggerTokenaura1_square]|
-            aura1_radius:[&TriggerTokenaura1_radius]|
-            aura1_color:[&TriggerTokenaura1_color]|
+            tint_color:[&[&_ctTriggerName(totitlecase)]TokenColor]|
             [&PlayaudioLocation]:"[&_ctPlayaudio]"|
             [&VisualEffectLocation]:"[&_ctVisualEffect]"|
             [&WhisperToGMLocation]:"[&_ctWhisperToGM]"|
@@ -333,10 +334,16 @@
         --~|array;define;_scMiscConfigVar;[&MiscConfigList]
         --~|array;define;_scSpawnConfigVar;[&TriggerTokenConfigList]
         --~|array;define;_scLocationConfigVar;[&TriggerLocationConfigList]
+        --~|array;define;_scColorConfigVar;[&TriggerColorConfigList]
 
         --+|[c][b]Trigger Spawn Properties[/b][/c]
         --%_scSpawnVar|foreach;_scSpawnConfigVar
             --+[&_scSpawnVar([&TriggerPropertyPrefix(length)])]|"[&[&_scSpawnVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new config value}%%%[&_scSpawnVar][/rbutton]
+        --%|
+
+        --+|[c][b]Trigger Colors[/b][/c]
+        --%_scColorVar|foreach;_scColorConfigVar
+            --+[&_scColorVar]|"[&[&_scColorVar]]" [rbutton]Edit::EditConfig;[&RQ]Enter new color value}%%%[&_scColorVar][/rbutton]
         --%|
 
         --+|[br][c][b]Trigger Location Config[/b][/c]

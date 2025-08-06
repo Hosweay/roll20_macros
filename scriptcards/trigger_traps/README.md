@@ -59,6 +59,30 @@ Custom actions will use ScriptCards `runaction` ability to run an ability stored
 
 Note that custom actions will not output text, play audio, or do a visual effect regardless of those locations being populated. Custom actions are entirely under your control and will only do what the custom ability does.
 
+#### Custom Action Example
+```text
+!script {{
+  --/|ScriptCards runaction function parameters replace REPLX once, so we use those to set variables
+  --&TrapTokenID|[REPL1]
+  --&TriggeringTokenID|[REPL2]
+  --&TriggeringLocation|[REPL3]
+  --&TriggerArea|[REPL4]
+
+  --/|Since the trigger trap for custom actions does not use any token locations
+  --/|Custom actions have access to customize any token location for its own purposes
+  --/|without interference from any built-in trigger trap locations
+  --&SaveType|[*[&TrapTokenID]:t-bar1_value]
+  --&DamageDice|[*[&TrapTokenID]:t-bar2_value]
+  --&Radius|[*[&TrapTokenID]:t-bar3_value]
+
+  --/|The rest is just ScriptCards displaying an example
+  --#title|Trigger Trap Custom Example
+  --+CLICK!|[*[&TriggeringTokenID]:t-name] stepped on a trap at [&TriggeringLocation]
+  --+|Everyone in a [&Radius] radius will need to make a [&SaveType] save or take [&DamageDice] damage
+}}
+```
+![Screenshot of custom action example output](images/custom_ability_example_screenshot.png)
+
 ## Naming Conventions
 
 Trigger tokens use naming conventions to declare the type of trigger. The smallest trigger name is `trigger:actiontype`. Other options can be specified `trigger:Area:Active:ContinueMoving:Action`.

@@ -1,6 +1,6 @@
 !script {{
     --/|Work in progress change:graphic trigger for token collisions with traps
-    --&_triggerVersion|0.0.21
+    --&_triggerVersion|0.0.22
 
     --/|CONFIGURATION VARIABLES
     --&LogLevel|error
@@ -585,9 +585,9 @@
         -->LogMessage|DEBUG;Inside _GetPositionFromLocation with token [%1%] and location [%2%]
         -->GetTokenSizeInGridSquares|[%1%];_gpflWidth;_gpflHeight
         -->GetSquareSizeForPage|[%3%];_gpflPixelSize
-        -->LogMessage|DEBUG;_GetPositionFromLocation token size [&_gpflHeight] [&_gpflWidth] pixel size [&_gpflPixelSize]
-        --&_gpflPageWidth|[*O:[%3%]:page:width]
-        --&_gpflPageHeight|[*O:[%3%]:page:height]
+        -->LogMessage|DEBUG;_GetPositionFromLocation token size [&_gpflHeight] height and [&_gpflWidth] width with a pixel size of [&_gpflPixelSize]
+        --&_gpflPageWidth|[= [*O:[%3%]:page:width] \ [*O:[%3%]:page:snapping_increment] ]
+        --&_gpflPageHeight|[= [*O:[%3%]:page:height] \ [*O:[%3%]:page:snapping_increment] ]
         -->LogMessage|DEBUG;_GetPositionFromLocation page size [&_gpflPageWidth] by [&_gpflPageHeight]
         --~_gpflDest|string;split;,;[%2%]
         -->LogMessage|DEBUG;_GetPositionFromLocation destination [&_gpflDest1] and [&_gpflDest2]

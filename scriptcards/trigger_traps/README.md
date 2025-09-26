@@ -134,6 +134,8 @@ Currently only pages with a square grid are supported. Pages with the grid disab
 
 Stacking trigger traps is not supported. Not saying it definitely will not work but it there may be unexpected results. If you have a real use case for needing stacked trigger trap tokens, please open a Github issue describing the use case and what you are looking to accomplish.
 
+Trigger token locations that do not snap to a grid square and are instead floating partially covering squares is not supported. See [Issue #20](https://github.com/Hosweay/roll20_macros/issues/20)
+
 ## Utility Script
 
 In addition to the trigger, there is also another ScriptCard to help manage triggers. The Trigger Manager utility will spawn a new trigger token, activate existing triggers, and edit and save trigger trap configuration variables.

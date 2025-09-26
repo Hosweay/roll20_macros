@@ -1,6 +1,6 @@
 !script {{
     --/|Work in progress change:graphic trigger for token collisions with traps
-    --&_triggerVersion|0.0.22
+    --&_triggerVersion|0.0.23
 
     --/|CONFIGURATION VARIABLES
     --&LogLevel|error
@@ -564,6 +564,8 @@
     --:_BuiltinDescription|TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
         -->LogMessage|DEBUG;Read description at [%1%] triggered by [%2%] at [%3%] with area of [%4%]
         -->_CheckForOutput|[%1%];[%2%]
+        --?"[*[%1%]:t-[&VisualEffectLocation]]X" -ne "X"|>_DisplayVFX;[%1%]
+        --?"[*[%1%]:t-[&PlayaudioLocation]]X" -ne "X"|>_Playaudio;[%1%]
     --<|
 
     --:_BuiltinPlayaudio|TriggerTokenID;TriggeringTokenID;TriggeringSquare;TrapArea
